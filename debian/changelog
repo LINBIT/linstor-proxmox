@@ -1,0 +1,5 @@
+drbdmanage-proxmox (1.0-1) experimental; urgency=medium
+
+  * Initial release.
+
+ -- Roland Kammerer <roland.kammerer@linbit.com>  Mon, 05 Dec 2016 16:42:00 +0100

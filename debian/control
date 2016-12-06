@@ -1,0 +1,20 @@
+Source: drbdmanage-proxmox
+Maintainer: LINBIT HA Solutions GmbH <drbd-dev@lists.linbit.com>
+Uploaders: Roland Kammerer <roland.kammerer@linbit.com>
+Section: perl
+Priority: optional
+Build-Depends: debhelper (>= 9)
+Standards-Version: 3.9.6
+
+Package: drbdmanage-proxmox
+Architecture: all
+Depends: python-drbdmanage,
+         ${misc:Depends},
+			${perl:Depends}
+Description: DRBD distributed resource management utility
+ Drbdmanage is a daemon and a command line utility that manages DRBD
+ replicated LVM volumes across a group of machines.
+ .
+ It maintains DRBD configuration an the participating machines. It
+ creates/deletes the backing LVM volumes. It automatically places
+ the backing LVM volumes among the participating machines.

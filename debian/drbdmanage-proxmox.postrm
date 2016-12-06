@@ -1,0 +1,7 @@
+#!/bin/sh
+
+if [ remove = "$1" -o abort-install = "$1" -o disappear = "$1" ]; then
+	dpkg-divert --package drbdmanage-proxmox --remove --rename \
+		--divert /usr/share/perl5/PVE/Storage/DRBDPlugin.pm.proxmox /usr/share/perl5/PVE/Storage/DRBDPlugin.pm
+
+fi

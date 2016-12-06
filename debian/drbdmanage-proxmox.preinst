@@ -1,0 +1,4 @@
+#!/bin/sh
+
+dpkg-divert --package drbdmanage-proxmox --add --rename \
+		--divert /usr/share/perl5/PVE/Storage/DRBDPlugin.pm.proxmox /usr/share/perl5/PVE/Storage/DRBDPlugin.pm
