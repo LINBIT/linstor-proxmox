@@ -14,7 +14,7 @@ use PVE::JSONSchema qw(get_standard_option);
 
 use base qw(PVE::Storage::Plugin);
 
-# Configuration 
+# Configuration
 
 my $default_redundancy = 2;
 my $APIVER = 1;
@@ -87,12 +87,12 @@ sub check_drbd_res {
         my $msg;
         if (defined($format)) {
             my @args = ();
-            push @args, $details->{$1} // "" 
+            push @args, $details->{$1} // ""
             while $format =~ s,\%\((\w+)\),%,;
 
             $msg = sprintf($format, @args);
 
-        } else {    
+        } else {
             $msg = "drbd error: got error code $code";
         }
 
@@ -128,11 +128,11 @@ sub drbd_list_volumes {
             $size = $vol_size if $vol_size > $size;
         }
 
-        $volumes->{$volname} = { format => 'raw', size => $size, 
+        $volumes->{$volname} = { format => 'raw', size => $size,
             vmid => $vmid };
     }
 
-    return $volumes; 
+    return $volumes;
 }
 
 # Storage implementation
@@ -177,7 +177,7 @@ sub alloc_image {
 
     die "unsupported format '$fmt'" if $fmt ne 'raw';
 
-    die "illegal name '$name' - should be 'vm-$vmid-*'\n" 
+    die "illegal name '$name' - should be 'vm-$vmid-*'\n"
     if defined($name) && $name !~ m/^vm-$vmid-/;
 
     my $hdl = connect_drbdmanage_service();
@@ -185,7 +185,7 @@ sub alloc_image {
 
     die "volume '$name' already exists\n" if defined($name) && $volumes->{$name};
 
-    if (!defined($name)) {	
+    if (!defined($name)) {
         for (my $i = 1; $i < 100; $i++) {
             my $tn = "vm-$vmid-disk-$i";
             if (!defined ($volumes->{$tn})) {
@@ -341,7 +341,7 @@ sub activate_volume {
         sleep(1);
     }
 
-    return undef;    
+    return undef;
 }
 
 sub deactivate_volume {
@@ -354,7 +354,7 @@ sub deactivate_volume {
     # remove above return to enable this code
     my $hdl = connect_drbdmanage_service();
     my $nodename = PVE::INotify::nodename();
-    my ($rc, $res) = $hdl->list_assignments([$nodename], [$volname], 0, 
+    my ($rc, $res) = $hdl->list_assignments([$nodename], [$volname], 0,
         { "cstate:diskless" => "true" }, []);
     check_drbd_res($rc);
     if (scalar(@$res)) {
@@ -362,7 +362,7 @@ sub deactivate_volume {
         check_drbd_res($rc);
     }
 
-    return undef;    
+    return undef;
 }
 
 sub volume_resize {
