@@ -376,22 +376,36 @@ sub volume_resize {
     return 1;
 }
 
-sub volume_snapshot {
-    my ($class, $scfg, $storeid, $volname, $snap, $running) = @_;
+sub volname_and_snap_to_snapname {
+    my ($volname, $snap) = @_;
+    return "snap_${volname}_${snap}";
+}
 
-    die "drbd snapshot is not implemented";
+sub volume_snapshot {
+    my ($class, $scfg, $storeid, $volname, $snap) = @_;
+
+    my $snapname = volname_and_snap_to_snapname($volname, $snap);
+    my $hdl = connect_drbdmanage_service();
+    my $rc = $hdl->create_snapshot($volname, $snapname, [], {});
+    check_drbd_res($rc);
+
+    return 1
 }
 
 sub volume_snapshot_rollback {
     my ($class, $scfg, $storeid, $volname, $snap) = @_;
 
-    die "drbd snapshot rollback is not implemented";
+    die "drbd snapshot rollback is not implemented, please use 'drbdmanage' to recover your data, use 'qm unlock' to unlock your VM";
 }
 
 sub volume_snapshot_delete {
     my ($class, $scfg, $storeid, $volname, $snap) = @_;
+    my $snapname = volname_and_snap_to_snapname($volname, $snap);
+    my $hdl = connect_drbdmanage_service();
+    my $rc = $hdl->remove_snapshot($volname, $snapname, 0);
+    check_drbd_res($rc);
 
-    die "drbd snapshot delete is not implemented";
+    return 1
 }
 
 sub volume_has_feature {
@@ -399,6 +413,7 @@ sub volume_has_feature {
 
     my $features = {
         copy => { base => 1, current => 1},
+        snapshot => { current => 1 },
     };
 
     my ($vtype, $name, $vmid, $basename, $basevmid, $isBase) =
