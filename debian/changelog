@@ -1,3 +1,11 @@
+drbdmanage-proxmox (2.0-1) experimental; urgency=medium
+
+  * add resize functionality
+  * add snapshot functionality
+  * remove trailing whitespaces
+
+ -- Roland Kammerer <roland.kammerer@linbit.com>  Mon, 18 Sep 2017 16:10:09 +0200
+
 drbdmanage-proxmox (1.0-1) experimental; urgency=medium
 
   * Initial release.
