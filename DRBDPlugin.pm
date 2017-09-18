@@ -368,15 +368,10 @@ sub deactivate_volume {
 sub volume_resize {
     my ($class, $scfg, $storeid, $volname, $size, $running) = @_;
 
-    $size = ($size/1024/1024) . "M";
-
-    my $path = $class->path($scfg, $volname);
-
-    # fixme: howto implement this
-    die "drbd volume_resize is not implemented";
-
-    #my $cmd = ['/sbin/lvextend', '-L', $size, $path];
-    #run_command($cmd, errmsg => "error resizing volume '$path'");
+    $size = ($size/1024);
+    my $hdl = connect_drbdmanage_service();
+    my $rc = $hdl->resize_volume($volname, 0, 0, $size, 0);
+    check_drbd_res($rc);
 
     return 1;
 }
