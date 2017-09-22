@@ -62,77 +62,33 @@ sub get_redundancy {
     return $scfg->{redundancy} || $default_redundancy;
 }
 
-sub connect_drbdmanage_service {
-
-    my $bus = Net::DBus->system;
-
-    my $service = $bus->get_service("org.drbd.drbdmanaged");
-
-    my $hdl = $service->get_object("/interface", "org.drbd.drbdmanaged");
-
-    return $hdl;
-}
-
-sub check_drbd_res {
-    my ($rc) = @_;
-
-    die "got undefined drbd result\n" if !$rc;
-
-    # Messages for return codes 1 to 99 are not considered an error.
-    foreach my $res (@$rc) {
-        my ($code, $format, $details) = @$res;
-
-        next if $code < 100;
-
-        my $msg;
-        if (defined($format)) {
-            my @args = ();
-            push @args, $details->{$1} // ""
-            while $format =~ s,\%\((\w+)\),%,;
-
-            $msg = sprintf($format, @args);
-
-        } else {
-            $msg = "drbd error: got error code $code";
-        }
-
-        chomp $msg;
-        die "drbd error: $msg\n";
-    }
-
-    return undef;
-}
-
 sub drbd_list_volumes {
-    my ($hdl) = @_;
-
-    $hdl = connect_drbdmanage_service() if !$hdl;
-
-    my ($rc, $res) = $hdl->list_volumes([], 0, {}, []);
-    check_drbd_res($rc);
-
     my $volumes = {};
 
-    foreach my $entry (@$res) {
-        my ($volname, $properties, $vol_list) = @$entry;
+    # call drbdmange lv -m
+    my @lv = qx{/usr/bin/drbdmanage list-volumes -m};
 
+    foreach my $line (@lv) {
+        my @f = split /,/, $line;
+        my ($volname, $size_kib) = ($f[0], $f[3]);
         next if $volname !~ m/^vm-(\d+)-/;
         my $vmid = $1;
 
-        # fixme: we always use volid 0 ?
-        my $size = 0;
-        foreach my $volentry (@$vol_list) {
-            my ($vol_id, $vol_properties) = @$volentry;
-            next if $vol_id != 0;
-            my $vol_size = $vol_properties->{vol_size} * 1024;
-            $size = $vol_size if $vol_size > $size;
-        }
+        my $size = $size_kib * 1024;
 
         $volumes->{$volname} = { format => 'raw', size => $size,
             vmid => $vmid };
     }
 
     return $volumes;
+}
+
+sub drbdmanage_cmd {
+    # be extra pedantic.
+    run_command(['/usr/bin/drbdmanage', 'wait-for-startup'], errmsg => 'drbdmanage not ready');
+
+    my ($cmd, $errormsg) = @_;
+    run_command($cmd, errmsg => $errormsg);
 }
 
 # Storage implementation
@@ -180,8 +136,7 @@ sub alloc_image {
     die "illegal name '$name' - should be 'vm-$vmid-*'\n"
     if defined($name) && $name !~ m/^vm-$vmid-/;
 
-    my $hdl = connect_drbdmanage_service();
-    my $volumes = drbd_list_volumes($hdl);
+    my $volumes = drbd_list_volumes();
 
     die "volume '$name' already exists\n" if defined($name) && $volumes->{$name};
 
@@ -198,25 +153,13 @@ sub alloc_image {
     die "unable to allocate an image name for VM $vmid in storage '$storeid'\n"
     if !defined($name);
 
-    my ($rc, $res) = $hdl->create_resource($name, {});
-    check_drbd_res($rc);
-
-    ($rc, $res) = $hdl->create_volume($name, $size, {});
-    check_drbd_res($rc);
-
-    ($rc, $res) = $hdl->set_drbdsetup_props(
-        {
-            target => "resource",
-            resource => $name,
-            type => 'neto',
-            'allow-two-primaries' => 'yes',
-        });
-    check_drbd_res($rc);
+    $size = ($size/1024/1024);
+    drbdmanage_cmd(['/usr/bin/drbdmanage', 'new-resource', $name], "Could not create resource $name");
+    drbdmanage_cmd(['/usr/bin/drbdmanage', 'new-volume', $name, $size], "Could not create-volume in $name resource");
+    drbdmanage_cmd(['/usr/bin/drbdmanage', 'net-options', '--resource', $name, '--allow-two-primaries=yes'], "Could not set 'allow-two-primaries'");
 
     my $redundancy = get_redundancy($scfg);;
-
-    ($rc, $res) = $hdl->auto_deploy($name, $redundancy, 0, 0);
-    check_drbd_res($rc);
+    drbdmanage_cmd(['/usr/bin/drbdmanage', 'deploy',  $name, $redundancy], "Could not deploy $name");
 
     return $name;
 }
@@ -224,9 +167,7 @@ sub alloc_image {
 sub free_image {
     my ($class, $storeid, $scfg, $volname, $isBase) = @_;
 
-    my $hdl = connect_drbdmanage_service();
-    my ($rc, $res) = $hdl->remove_resource($volname, 0);
-    check_drbd_res($rc);
+    drbdmanage_cmd(['/usr/bin/drbdmanage', 'remove-resource', '-q', $volname], "Could not remove $volname");
 
     return undef;
 }
@@ -270,10 +211,11 @@ sub status {
     my ($total, $avail, $used);
 
     eval {
-        my $hdl = connect_drbdmanage_service();
-        my $redundancy = get_redundancy($scfg);;
-        my ($rc, $free_space, $total_space) = $hdl->cluster_free_query($redundancy);
-        check_drbd_res($rc);
+        my $redundancy = get_redundancy($scfg);
+        my @fs = qx{/usr/bin/drbdmanage free-space $redundancy -m};
+
+        my @f = split /,/, $fs[0];
+        my ($free_space, $total_space) = ($f[0], $f[1]);
 
         $avail = $free_space*1024;
         $total = $total_space*1024;
@@ -309,17 +251,15 @@ sub activate_volume {
 
     my $path = $class->path($scfg, $volname);
 
-    my $hdl = connect_drbdmanage_service();
     my $nodename = PVE::INotify::nodename();
-    my ($rc, $res) = $hdl->list_assignments([$nodename], [$volname], 0, {}, []);
-    check_drbd_res($rc);
+
+    my @res = qx{/usr/bin/drbdmanage list-assignments -m -N $nodename -R $volname};
 
 # assignment already exists?
-    return undef if @$res;
+    return undef if @res;
 
     # create diskless assignment
-    ($rc, $res) = $hdl->assign($nodename, $volname, { diskless => 'true' });
-    check_drbd_res($rc);
+    drbdmanage_cmd(['/usr/bin/drbdmanage', 'assign-resource', '--client', $volname, $nodename], "Could not create diskless assignment ($volname -> $nodename)");
 
     # wait until device is accessible
     my $print_warning = 1;
@@ -330,10 +270,10 @@ sub activate_volume {
             last if system("dd if=$path of=/dev/null bs=512 count=1 >/dev/null 2>&1") == 0;
         } else {
             # correct, but does not work?
-            ($rc, $res) = $hdl->list_assignments([$nodename], [$volname], 0, { "cstate:deploy" => "true" }, []);
-            check_drbd_res($rc);
-            my $len = scalar(@$res);
-            last if $len > 0;
+            # my ($rc, $res) = $hdl->list_assignments([$nodename], [$volname], 0, { "cstate:deploy" => "true" }, []);
+            # check_drbd_res($rc);
+            # my $len = scalar(@$res);
+            # last if $len > 0;
         }
         die "aborting wait - device '$path' still not readable\n" if $i > $max_wait_time;
         print "waiting for device '$path' to become ready...\n" if $print_warning;
@@ -352,14 +292,14 @@ sub deactivate_volume {
     return undef; # fixme: should we unassign ?
 
     # remove above return to enable this code
-    my $hdl = connect_drbdmanage_service();
     my $nodename = PVE::INotify::nodename();
-    my ($rc, $res) = $hdl->list_assignments([$nodename], [$volname], 0,
-        { "cstate:diskless" => "true" }, []);
-    check_drbd_res($rc);
-    if (scalar(@$res)) {
-        my ($rc, $res) = $hdl->unassign($nodename, $volname,0);
-        check_drbd_res($rc);
+
+    my @as = qx{/usr/bin/drbdmanage list-assignments -N $nodename -R $volname -m};
+    my @f = split /,/, $as[0];
+    my $cstate = $f[3];
+
+    if ($cstate =~ /diskless/) {
+        drbdmanage_cmd(['/usr/bin/drbdmanage', 'unassign-resource', $volname, $nodename], "Could not unassign resource $volname from node $nodename");
     }
 
     return undef;
@@ -368,10 +308,8 @@ sub deactivate_volume {
 sub volume_resize {
     my ($class, $scfg, $storeid, $volname, $size, $running) = @_;
 
-    $size = ($size/1024);
-    my $hdl = connect_drbdmanage_service();
-    my $rc = $hdl->resize_volume($volname, 0, 0, $size, 0);
-    check_drbd_res($rc);
+    $size = ($size/1024/1024/1024);
+    drbdmanage_cmd(['/usr/bin/drbdmanage', 'resize', $volname, 0, $size], "Could not resize $volname");
 
     return 1;
 }
@@ -385,9 +323,8 @@ sub volume_snapshot {
     my ($class, $scfg, $storeid, $volname, $snap) = @_;
 
     my $snapname = volname_and_snap_to_snapname($volname, $snap);
-    my $hdl = connect_drbdmanage_service();
-    my $rc = $hdl->create_snapshot($volname, $snapname, [], {});
-    check_drbd_res($rc);
+    my $nodename = PVE::INotify::nodename();
+    drbdmanage_cmd(['/usr/bin/drbdmanage', 'create-snapshot', $snapname, $volname, $nodename], "Could not create snapshot for $volname on $nodename");
 
     return 1
 }
@@ -401,9 +338,8 @@ sub volume_snapshot_rollback {
 sub volume_snapshot_delete {
     my ($class, $scfg, $storeid, $volname, $snap) = @_;
     my $snapname = volname_and_snap_to_snapname($volname, $snap);
-    my $hdl = connect_drbdmanage_service();
-    my $rc = $hdl->remove_snapshot($volname, $snapname, 0);
-    check_drbd_res($rc);
+
+    drbdmanage_cmd(['/usr/bin/drbdmanage', 'remove-snapshot', $volname, $snapname], "Could not remove snapshot $snapname for resource $volname");
 
     return 1
 }
