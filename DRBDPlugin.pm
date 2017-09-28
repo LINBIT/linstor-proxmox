@@ -153,7 +153,7 @@ sub alloc_image {
     die "unable to allocate an image name for VM $vmid in storage '$storeid'\n"
     if !defined($name);
 
-    $size = ($size/1024/1024);
+    $size = $size . 'kiB';
     drbdmanage_cmd(['/usr/bin/drbdmanage', 'new-resource', $name], "Could not create resource $name");
     drbdmanage_cmd(['/usr/bin/drbdmanage', 'new-volume', $name, $size], "Could not create-volume in $name resource");
     drbdmanage_cmd(['/usr/bin/drbdmanage', 'net-options', '--resource', $name, '--allow-two-primaries=yes'], "Could not set 'allow-two-primaries'");
@@ -308,7 +308,7 @@ sub deactivate_volume {
 sub volume_resize {
     my ($class, $scfg, $storeid, $volname, $size, $running) = @_;
 
-    $size = ($size/1024/1024/1024);
+    $size = ($size/1024) . 'kiB';
     drbdmanage_cmd(['/usr/bin/drbdmanage', 'resize', $volname, 0, $size], "Could not resize $volname");
 
     return 1;
