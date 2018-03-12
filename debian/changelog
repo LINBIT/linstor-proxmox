@@ -1,28 +1,5 @@
-drbdmanage-proxmox (2.2-1) experimental; urgency=medium
-
-  * add README.md for github
-  * also add the README.md to tarballs
-  * saner size calculation
-  * DRBDPlugin.pm.divert: add missing file
-
- -- Roland Kammerer <roland.kammerer@linbit.com>  Wed, 20 Jun 2018 15:20:14 +0200
-
-drbdmanage-proxmox (2.1-1) experimental; urgency=medium
-
-  * switch from DBUS API to CLI
-
- -- Roland Kammerer <roland.kammerer@linbit.com>  Tue, 26 Sep 2017 10:59:06 +0200
-
-drbdmanage-proxmox (2.0-1) experimental; urgency=medium
-
-  * add resize functionality
-  * add snapshot functionality
-  * remove trailing whitespaces
-
- -- Roland Kammerer <roland.kammerer@linbit.com>  Mon, 18 Sep 2017 16:10:09 +0200
-
-drbdmanage-proxmox (1.0-1) experimental; urgency=medium
+linstor-proxmox (1.0-1) experimental; urgency=medium
 
   * Initial release.
 
- -- Roland Kammerer <roland.kammerer@linbit.com>  Mon, 05 Dec 2016 16:42:00 +0100
+ -- Roland Kammerer <roland.kammerer@linbit.com>  Mon, 12 Mar 2018 10:38:00 +0100

@@ -1,9 +1,9 @@
 Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: drbdmanage-proxmox
-Source: http://oss.linbit.com/drbdmanage
+Upstream-Name: linstor-proxmox
+Source: https://www.linbit.com/en/drbd-community/drbd-download/
 
 Files: *
-Copyright: Copyright (C) 2016, LINBIT HA-Solutions GmbH
+Copyright: Copyright (C) 2016-2018, LINBIT HA-Solutions GmbH
            Copyright (C) 2010-2016, Proxmox Server Solutions GmbH
 License: Affero GPL-3+
  This program is free software: you can redistribute it

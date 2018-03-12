@@ -1,6 +1,6 @@
 DESTDIR=
 PREFIX=/usr
-REL=drbdmanage-proxmox-$(VERSION)
+REL=linstor-proxmox-$(VERSION)
 
 export PERLDIR=${PREFIX}/share/perl5
 
@@ -13,7 +13,7 @@ deb:
 
 install:
 	install -D -m 0644 ./DRBDPlugin.pm.divert ${DESTDIR}$(PERLDIR)/PVE/Storage/DRBDPlugin.pm
-	install -D -m 0644 ./DRBDPlugin.pm ${DESTDIR}$(PERLDIR)/PVE/Storage/Custom/DRBDPlugin.pm
+	install -D -m 0644 ./LINSTORPlugin.pm ${DESTDIR}$(PERLDIR)/PVE/Storage/Custom/LINSTORPlugin.pm
 
 ifndef VERSION
 debrelease:
@@ -25,8 +25,8 @@ debrelease:
 	tar --owner=0 --group=0 -czvf $(REL).tar.gz \
 		$(REL)/Makefile \
 		$(REL)/README.md \
-		$(REL)/DRBDPlugin.pm \
 		$(REL)/DRBDPlugin.pm.divert \
+		$(REL)/LINSTORPlugin.pm \
 		$(REL)/debian
 	if test -L "$(REL)"; then rm $(REL); fi
 endif
