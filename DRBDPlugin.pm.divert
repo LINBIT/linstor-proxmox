@@ -1,0 +1,6 @@
+package PVE::Storage::DRBDPlugin;
+use base qw(PVE::Storage::Plugin);
+sub status { return undef; }
+sub type { return "drbd-deactivated"; }
+sub plugindata { return {}; }
+1;
