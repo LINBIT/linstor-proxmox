@@ -1,3 +1,12 @@
+drbdmanage-proxmox (2.2-1) experimental; urgency=medium
+
+  * add README.md for github
+  * also add the README.md to tarballs
+  * saner size calculation
+  * DRBDPlugin.pm.divert: add missing file
+
+ -- Roland Kammerer <roland.kammerer@linbit.com>  Wed, 20 Jun 2018 15:20:14 +0200
+
 drbdmanage-proxmox (2.1-1) experimental; urgency=medium
 
   * switch from DBUS API to CLI
