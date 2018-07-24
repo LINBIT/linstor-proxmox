@@ -1,5 +1,5 @@
-linstor-proxmox (1.0-1) experimental; urgency=medium
+linstor-proxmox (2.8-1) experimental; urgency=medium
 
-  * Initial release.
+  * linstor-proxmox: rework plugin
 
- -- Roland Kammerer <roland.kammerer@linbit.com>  Mon, 12 Mar 2018 10:38:00 +0100
+ -- Roland Kammerer <roland.kammerer@linbit.com>  Tue, 24 Jul 2018 10:40:11 +0200
