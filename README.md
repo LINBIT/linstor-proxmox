@@ -1,8 +1,8 @@
-# DRBDManage Proxmox Plugin
-The Proxmox Plugin, now developed by [LINBIT](https://www.linbit.com), is a plugin that allows managing
-storage for VMs from the Proxmox GUI via DRBDManage.
+# LINSTOR Proxmox Plugin
+The Proxmox Plugin, developed by [LINBIT](https://www.linbit.com), is a plugin that allows managing
+storage for VMs from the Proxmox GUI via LINSTOR.
 
-# Using the DRBDManage Proxmox Plugin
+# Using the LINSTOR Proxmox Plugin
 Please read the user-guide provided at [docs.linbit.com](https://docs.linbit.com).
 
 # Support
