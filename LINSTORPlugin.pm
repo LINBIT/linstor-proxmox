@@ -161,7 +161,7 @@ sub volname_and_snap_to_snapname {
 sub linstor_cmd {
     my ( $scfg, $cmd, $errormsg ) = @_;
     my $controller = get_controller($scfg);
-    unshift @$cmd, '/usr/bin/linstor', "--controllers=$controller";
+    unshift @$cmd, '/usr/bin/linstor', "--no-color", "--no-utf8", "--controllers=$controller";
     run_command( $cmd, errmsg => $errormsg );
 }
 
