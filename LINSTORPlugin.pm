@@ -308,16 +308,24 @@ sub list_images {
 
 sub status {
     my ( $class, $storeid, $scfg, $cache ) = @_;
+    my $controller = get_controller($scfg);
+    my $nodename   = PVE::INotify::nodename();
 
     my ( $total, $avail, $used );
 
-    # HACK/TODO(rck)
-    return (
-        10 * 1024 * 1024 * 1024 * 1024,
-        8 * 1024 * 1024 * 1024 * 1024,
-        2 * 1024 * 1024 * 1024 * 1024, 1
+    my $json = decode_json(
+		qx{/usr/bin/linstor --controllers=$controller -m storage-pool list -n $nodename}
     );
-    # END HACK/TODO(rck)
+
+    # we assume that in proxmox setups there is exactly one pool used for storage
+    # therefore we use the one at [0]
+    my $free_space = $json->[0]->{stor_pools}->[0]->{free_space};
+    return undef unless $free_space;
+
+    # they want it in bytes
+    $avail = $free_space->{free_capacity} * 1024;
+    $total = $free_space->{total_capacity} * 1024;
+    $used  = $total - $avail;
 
     return ( $total, $avail, $used, 1 );
 }
