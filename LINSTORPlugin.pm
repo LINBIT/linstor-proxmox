@@ -203,7 +203,12 @@ sub clone_image {
 sub alloc_image {
     my ( $class, $storeid, $scfg, $vmid, $fmt, $name, $size ) = @_;
 
-    return $name if ignore_volume($scfg, $name);
+    # check if it is the controller, which always has exactly "disk-1"
+    my $retname = $name;
+    if (!defined($name)) {
+        $retname = "vm-$vmid-disk-1";
+    }
+    return $retname if ignore_volume( $scfg, $retname );
 
     die "unsupported format '$fmt'" if $fmt ne 'raw';
 
