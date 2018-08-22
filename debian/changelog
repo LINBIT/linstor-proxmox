@@ -1,3 +1,12 @@
+linstor-proxmox (2.9.0-1) experimental; urgency=medium
+
+  * README: DM -> LINSTOR
+  * do not use colors/utf8 chars
+  * propper size reporting
+  * skip alloc_image if it is the controller volume
+
+ -- Roland Kammerer <roland.kammerer@linbit.com>  Wed, 22 Aug 2018 14:16:46 +0200
+
 linstor-proxmox (2.8-1) experimental; urgency=medium
 
   * linstor-proxmox: rework plugin
