@@ -386,9 +386,11 @@ sub activate_volume {
     linstor_cmd(
         $scfg,
         [ 'resource', 'create', '--diskless', $nodename, $volname ],
-        "Could not create diskless resource ($volname) on $nodename)"
+        "Could not create diskless resource ($volname) on ($nodename)"
     );
 
+	  # XXX I'd suggest to use sysopen and sysread right here,
+	  # why call out to dd?
     # wait until device is accessible
     my $print_warning = 1;
     my $max_wait_time = 20;
