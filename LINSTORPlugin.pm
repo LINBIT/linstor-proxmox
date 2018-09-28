@@ -55,6 +55,11 @@ sub properties {
             type        => 'string',
             default     => $default_controller_vm,
         },
+        linstorpool => {
+             description => "The name of the LINSTOR storage pool to be used. Leave off if you want to use LINSTOR defaults.",
+             type        => 'string',
+             default     => undef,
+        },
     };
 ## Please see file perltidy.ERR
 }
@@ -62,6 +67,7 @@ sub properties {
 sub options {
     return {
         redundancy   => { optional => 1 },
+        linstorpool  => { optional => 1 },
         controller   => { optional => 1 },
         controllervm => { optional => 1 },
         content      => { optional => 1 },
@@ -71,6 +77,14 @@ sub options {
 }
 
 # helpers
+
+# returns "-s", "$poolname" if defined,
+# empty list otherwise.
+sub dash_s_poolname_if_defined {
+    my ($scfg) = @_;
+    defined $scfg->{linstorpool} ?
+    ( "-s", $scfg->{linstorpool} ) : ()
+}
 
 sub get_redundancy {
     my ($scfg) = @_;
@@ -274,7 +288,9 @@ sub alloc_image {
     my $redundancy = get_redundancy($scfg);
     linstor_cmd(
         $scfg,
-        [ 'resource', 'create', $name, '--auto-place', $redundancy ],
+        [ 'resource', 'create', $name,
+          dash_s_poolname_if_defined($scfg),
+                '--auto-place', $redundancy ],
         "Could not place $name"
     );
 
@@ -338,9 +354,11 @@ sub status {
 
     my $json = decode_json_from_pipe(
 	    $LINSTOR, "--controllers=$controller", "-m",
-	    "storage-pool", "list", "-n", $nodename);
+	    "storage-pool", "list", "-n", $nodename,
+	    dash_s_poolname_if_defined($scfg));
 
-    # Iterate over "all of them" (usually only one),
+    # We filtered for poolname above, so we should only have one.
+    # Still iterate over "all of them", in case it was undefined,
     # because that's effectively what we will get if we create a
     # new volume with auto-place without specifying the pool name.
     for my $pool (@{$json->[0]->{stor_pools}}) {
