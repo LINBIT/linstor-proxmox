@@ -152,15 +152,18 @@ sub drbd_exists_locally {
     my $controller = get_controller($scfg);
     my $json = decode_json_from_pipe(
 	    $LINSTOR, "--controllers=$controller", "-m",
-	    "resource", "list");
+	    "resource", "list", "-r", $resname, "-n", $nodename);
 
     return undef unless exists $json->[0]->{resource_states};
 
+    # We told linstor above to filter for resname,nodename already,
+    # so this "loop" should "iterate" over exactly one element now.
     for my $res ( @{ $json->[0]->{resource_states} } ) {
         if ( $res->{rsc_name} eq $resname and $res->{node_name} eq $nodename ) {
             return 1 if not $disklessonly;
             if ($disklessonly) {
                 return 1 if $res->{vlm_states}[0]->{disk_state} eq "Diskless";
+		# FIXME what if more than one volume per resource?
             }
         }
     }
