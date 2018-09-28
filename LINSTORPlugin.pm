@@ -20,6 +20,8 @@ my $default_controller = "localhost";
 my $default_controller_vm = "";
 my $APIVER = 1;
 
+my $LINSTOR = '/usr/bin/linstor';
+
 sub api {
     return $APIVER;
 }
@@ -98,15 +100,27 @@ sub ignore_volume {
     return undef;
 }
 
+sub decode_json_from_pipe {
+	my $kid = open(my $pipe, '-|');
+	die "fork failed:  $!" unless defined $kid;
+	if ($kid == 0) {
+		exec { $_[0] } @_;
+		exit 1;
+	}
+	local $/ = undef; # slurp mode
+	my $output = readline $pipe;
+	return decode_json($output);
+}
+
 sub drbd_list_volumes {
     my ($scfg) = @_;
     my $controller = get_controller($scfg);
 
     my $volumes = {};
 
-    my $json = decode_json(
-        qx{/usr/bin/linstor --controllers=$controller -m volume-definition list}
-    );
+    my $json = decode_json_from_pipe(
+	    $LINSTOR, "--controllers=$controller", "-m",
+	    "volume-definition", "list");
 
     for my $entry (@$json) {
         for my $rsc_dfn ( $entry->{rsc_dfns} ) {
@@ -136,8 +150,9 @@ sub drbd_exists_locally {
     my ( $scfg, $resname, $nodename, $disklessonly ) = @_;
 
     my $controller = get_controller($scfg);
-    my $json       = decode_json(
-        qx{/usr/bin/linstor --controllers=$controller -m resource list});
+    my $json = decode_json_from_pipe(
+	    $LINSTOR, "--controllers=$controller", "-m",
+	    "resource", "list");
 
     return undef unless exists $json->[0]->{resource_states};
 
@@ -161,7 +176,7 @@ sub volname_and_snap_to_snapname {
 sub linstor_cmd {
     my ( $scfg, $cmd, $errormsg ) = @_;
     my $controller = get_controller($scfg);
-    unshift @$cmd, '/usr/bin/linstor', "--no-color", "--no-utf8", "--controllers=$controller";
+    unshift @$cmd, $LINSTOR, "--no-color", "--no-utf8", "--controllers=$controller";
     run_command( $cmd, errmsg => $errormsg );
 }
 
@@ -318,9 +333,9 @@ sub status {
 
     my ( $total, $avail, $used );
 
-    my $json = decode_json(
-		qx{/usr/bin/linstor --controllers=$controller -m storage-pool list -n $nodename}
-    );
+    my $json = decode_json_from_pipe(
+	    $LINSTOR, "--controllers=$controller", "-m",
+	    "storage-pool", "list", "-n", $nodename);
 
     # we assume that in proxmox setups there is exactly one pool used for storage
     # therefore we use the one at [0]
