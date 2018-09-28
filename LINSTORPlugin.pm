@@ -93,7 +93,7 @@ sub ignore_volume {
 	 my $controller_vm = get_controller_vm($scfg);
 
     # keep the '-', if controller_vm is not set, we want vm--
-    return 1 if $volume =~ m/^vm-$controller_vm-/;
+    return 1 if $volume =~ m/^vm-\Q$controller_vm\E-/;
 
     return undef;
 }
