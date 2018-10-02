@@ -197,6 +197,16 @@ sub linstor_cmd {
     run_command( $cmd, errmsg => $errormsg );
 }
 
+sub wait_connect_resource {
+    my ($resource) = @_;
+
+    run_command(
+        [ 'drbdsetup', 'wait-connect-resource', $resource ],
+        errmsg => "Could not wait until replication established for ($resource)",
+        timeout => 60 # could use --wfc-timeout, but hey when we already do it proxmoxy...
+    );
+}
+
 # Storage implementation
 sub parse_volname {
     my ( $class, $volname ) = @_;
@@ -397,35 +407,14 @@ sub activate_volume {
 
     my $nodename = PVE::INotify::nodename();
 
-    # my $redundancy = get_redundancy($scfg);;
-
     # create diskless assignment if required
-    if ( drbd_exists_locally( $scfg, $volname, $nodename, 0 ) ) {
-        return undef;
-    }
-
     linstor_cmd(
         $scfg,
         [ 'resource', 'create', '--diskless', $nodename, $volname ],
         "Could not create diskless resource ($volname) on ($nodename)"
-    );
+    ) unless drbd_exists_locally( $scfg, $volname, $nodename, 0 );
 
-	  # XXX I'd suggest to use sysopen and sysread right here,
-	  # why call out to dd?
-    # wait until device is accessible
-    my $print_warning = 1;
-    my $max_wait_time = 20;
-    for ( my $i = 0 ; ; $i++ ) {
-        last
-          if system("dd if=$path of=/dev/null bs=512 count=1 >/dev/null 2>&1")
-          == 0;
-        die "aborting wait - device '$path' still not readable\n"
-          if $i > $max_wait_time;
-        print "waiting for device '$path' to become ready...\n"
-          if $print_warning;
-        $print_warning = 0;
-        sleep(1);
-    }
+    wait_connect_resource($volname);
 
     return undef;
 }
