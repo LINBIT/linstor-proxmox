@@ -8,7 +8,8 @@ Standards-Version: 3.9.6
 
 Package: linstor-proxmox
 Architecture: all
-Depends: linstor-client,
+Depends: drbd-utils,
+         linstor-client,
          libjson-perl,
          ${misc:Depends},
          ${perl:Depends}
