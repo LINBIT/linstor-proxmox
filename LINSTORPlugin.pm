@@ -428,6 +428,8 @@ sub deactivate_volume {
 
     my $nodename = PVE::INotify::nodename();
     if ( drbd_exists_locally( $scfg, $volname, $nodename, 1 ) ) {
+        print "Intentionally removing diskless assignment ($volname) on ($nodename).\n";
+        print "It will be re-created when the resource is actually used on this node.\n";
         linstor_cmd(
             $scfg,
             [ 'resource', 'delete', $nodename, $volname ],
