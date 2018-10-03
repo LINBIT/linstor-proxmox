@@ -55,7 +55,7 @@ sub properties {
             type        => 'string',
             default     => $default_controller_vm,
         },
-        linstorpool => {
+        storagepool => {
              description => "The name of the LINSTOR storage pool to be used. Leave off if you want to use LINSTOR defaults.",
              type        => 'string',
              default     => undef,
@@ -67,7 +67,7 @@ sub properties {
 sub options {
     return {
         redundancy   => { optional => 1 },
-        linstorpool  => { optional => 1 },
+        storagepool  => { optional => 1 },
         controller   => { optional => 1 },
         controllervm => { optional => 1 },
         content      => { optional => 1 },
@@ -82,8 +82,8 @@ sub options {
 # empty list otherwise.
 sub dash_s_poolname_if_defined {
     my ($scfg) = @_;
-    defined $scfg->{linstorpool} ?
-    ( "-s", $scfg->{linstorpool} ) : ()
+    defined $scfg->{storagepool} ?
+    ( "-s", $scfg->{storagepool} ) : ()
 }
 
 sub get_redundancy {
