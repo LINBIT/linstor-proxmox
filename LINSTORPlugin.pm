@@ -272,7 +272,7 @@ sub free_image {
 
     linstor_cmd(
         $scfg,
-        [ 'resource-definition', 'delete', '-q', $volname ],
+        [ 'resource-definition', 'delete', $volname ],
         "Could not remove $volname"
     );
 
