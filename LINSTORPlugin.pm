@@ -126,53 +126,21 @@ sub decode_json_from_pipe {
 	return decode_json($output);
 }
 
-sub drbd_list_volumes {
-    my ($scfg) = @_;
-    my $controller = get_controller($scfg);
-
-    my $volumes = {};
-
-    my $json = decode_json_from_pipe(
-	    $LINSTOR, "--controllers=$controller", "-m",
-	    "volume-definition", "list");
-
-    for my $entry (@$json) {
-        for my $rsc_dfn ( $entry->{rsc_dfns} ) {
-            for my $rsc (@$rsc_dfn) {
-                my $volname = $rsc->{rsc_name};
-                next if $volname !~ m/^vm-(\d+)-/;
-                my $vmid = $1;
-
-                my $size_kib;
-                if ( exists $rsc->{vlm_dfns}
-                    and scalar @{ $rsc->{vlm_dfns} } == 1 )
-                {
-                    my $size_kib = $rsc->{vlm_dfns}[0]->{vlm_size};
-                    my $size     = $size_kib * 1024;
-
-                    $volumes->{$volname} =
-                      { format => 'raw', size => $size, vmid => $vmid };
-                }
-            }
-        }
-    }
-
-    return $volumes;
-}
-
 sub drbd_exists_locally {
     my ( $scfg, $resname, $nodename, $disklessonly ) = @_;
 
     my $controller = get_controller($scfg);
-    my $json = decode_json_from_pipe(
+    my $r_list = decode_json_from_pipe(
 	    $LINSTOR, "--controllers=$controller", "-m",
-	    "resource", "list", "-r", $resname, "-n", $nodename);
+            "resource", "list",
+            "--resources", $resname,
+            "--nodes", $nodename);
 
-    return undef unless exists $json->[0]->{resource_states};
+    return undef unless exists $r_list->[0]->{resource_states};
 
     # We told linstor above to filter for resname,nodename already,
     # so this "loop" should "iterate" over exactly one element now.
-    for my $res ( @{ $json->[0]->{resource_states} } ) {
+    for my $res ( @{ $r_list->[0]->{resource_states} } ) {
         if ( $res->{rsc_name} eq $resname and $res->{node_name} eq $nodename ) {
             return 1 if not $disklessonly;
             if ($disklessonly) {
@@ -257,15 +225,32 @@ sub alloc_image {
     die "illegal name '$name' - should be 'vm-$vmid-*'\n"
       if defined($name) && $name !~ m/^vm-$vmid-/;
 
-    my $volumes = drbd_list_volumes($scfg);
+    my $controller = get_controller($scfg);
+    my $rd_list = decode_json_from_pipe(
+        $LINSTOR, "--controllers=$controller", "-m",
+        "resource-definition", "list");
+    # [ { "rsc_dfns": [
+    #       { "rsc_name": "XYZ", ...,
+    #         "vlm_dfns": [ { "vlm_size": size-in-kiB, "vlm_nr": Nr, ... },
+    #                       { ... } ] },
+    #       { ... }, { ... }
+    # ] } ]
+    #
+    # TODO:
+    # Currently we have/expect one resource per volume per proxmox disk image,
+    # we do not (yet) use or expect multi-volume resources, even thought it may
+    # be useful to have all vm images in one "consistency group".
+
+    # this is used to check for existence of rsc_name only:
+    my %resource = map { $_->{rsc_name} => 1 } @{$rd_list->[0]->{rsc_dfns}};
 
     die "volume '$name' already exists\n"
-      if defined($name) && $volumes->{$name};
+      if defined($name) && exists $resource{$name};
 
     if ( !defined($name) ) {
         for ( my $i = 1 ; $i < 100 ; $i++ ) {
             my $tn = "vm-$vmid-disk-$i";
-            if ( !defined( $volumes->{$tn} ) ) {
+            if ( !exists( $resource{$tn} ) ) {
                 $name = $tn;
                 last;
             }
@@ -326,30 +311,78 @@ sub free_image {
 sub list_images {
     my ( $class, $storeid, $scfg, $vmid, $vollist, $cache ) = @_;
 
-    my $vgname = $scfg->{vgname};
-
-    $cache->{drbd_volumes} = drbd_list_volumes($scfg)
-      if !$cache->{drbd_volumes};
-
     my $res = [];
-    my $dat = $cache->{drbd_volumes};
+    my $nodename   = PVE::INotify::nodename();
+    my $controller = get_controller($scfg);
 
-    foreach my $volname ( keys %$dat ) {
-        my $owner = $dat->{$volname}->{vmid};
-        my $volid = "$storeid:$volname";
+    $cache->{"linstor:rd_list"} = decode_json_from_pipe(
+            $LINSTOR, "--controllers=$controller", "-m",
+            "resource-definition", "list")
+        unless $cache->{"linstor:rd_list"};
+    # [ { "rsc_dfns": [
+    #       { "rsc_name": "XYZ", ...,
+    #         "vlm_dfns": [ { "vlm_size": size-in-kiB, "vlm_nr": Nr, ... },
+    #                       { ... } ] },
+    #       { ... }, { ... }
+    # ] } ]
 
-        if ($vollist) {
-            my $found = grep { $_ eq $volid } @$vollist;
-            next if !$found;
-        }
-        else {
-            next if defined($vmid) && ( $owner ne $vmid );
-        }
+    $cache->{"linstor:r_list"} = decode_json_from_pipe(
+            $LINSTOR, "--controllers=$controller", "-m",
+            "resource", "list",
+            "--nodes", $nodename)
+        unless $cache->{"linstor:r_list"};
+    # [ { "resource_states": [ ... ],
+    #     "resources": [
+    #       { "vlms": [ { "stor_pool_name": storagepool, ... }, { ... } ],
+    #           "name": "XYZ", ...  }, { ... } ]
+    # } ]
 
-        my $info = $dat->{$volname};
-        $info->{volid} = $volid;
+    # TODO:
+    # Currently we have/expect one resource per volume per proxmox disk image,
+    # we do not (yet) use or expect multi-volume resources, even thought it may
+    # be useful to have all vm images in one "consistency group".
 
-        push @$res, $info;
+    # Also, I'd like to have the actual current size reported
+    # in the "resource list", so I won't have to query both
+    # resource and resource-definition...
+
+    my ($rd_list, $r_list) = @$cache{qw(linstor:rd_list linstor:r_list)};
+
+    my %pool_of_res = map {
+        $_->{name} => $_->{vlms}->[0]->{stor_pool_name} // ""
+    } grep {
+        $_->{name} =~ /^vm-\d+-/ and
+        exists $_->{vlms} and scalar @{$_->{vlms}} == 1
+    } @{$r_list->[0]->{resources}};
+
+    # could also be written as map {} grep {} ...
+    # but a for loop is probably easier to maintain
+    for my $rsc (@{$rd_list->[0]->{rsc_dfns}}) {
+        my $name = $rsc->{rsc_name};
+
+        # skip if not on this node
+        next unless exists $pool_of_res{$name};
+
+        next unless $name =~ /^vm-(\d+)-/;
+        my $owner = $1; # aka "vmid"
+
+        # expect exactly one volume
+        # XXX warn for 0 or >= 2 volume resources?
+        next unless exists $rsc->{vlm_dfns} and scalar @{$rsc->{vlm_dfns}} == 1;
+
+        my $size_kib = $rsc->{vlm_dfns}[0]{vlm_size};
+        my $pool = $pool_of_res{$name};
+
+        # filter by storagepool property, if set
+        next if $scfg->{storagepool} and $scfg->{storagepool} ne $pool;
+
+        push @$res,
+            {
+                format => 'raw',
+                volid => "$storeid:$name",
+                size => $size_kib * 1024,
+                vmid => $owner,
+            };
     }
 
     return $res;
@@ -362,16 +395,20 @@ sub status {
 
     my ( $total, $avail );
 
-    my $json = decode_json_from_pipe(
+    $cache->{"linstor:sp_list"} = decode_json_from_pipe(
 	    $LINSTOR, "--controllers=$controller", "-m",
-	    "storage-pool", "list", "-n", $nodename,
-	    dash_s_poolname_if_defined($scfg));
+            "storage-pool", "list", "--nodes", $nodename)
+        unless $cache->{"linstor:sp_list"};
+    my $sp_list = $cache->{"linstor:sp_list"};
 
-    # We filtered for poolname above, so we should only have one.
-    # Still iterate over "all of them", in case it was undefined,
+    # To use the $cache, we do NOT filter for poolname above.
+    # Iterate over "all of them",
+    # aggregate in case it was undefined,
     # because that's effectively what we will get if we create a
     # new volume with auto-place without specifying the pool name.
-    for my $pool (@{$json->[0]->{stor_pools}}) {
+    # Or filter here if it was defined.
+    for my $pool (@{$sp_list->[0]->{stor_pools}}) {
+        next if $scfg->{storagepool} and $scfg->{storagepool} ne $pool->{stor_pool_name};
 	$avail += $pool->{free_space}->{free_capacity};
 	$total += $pool->{free_space}->{total_capacity};
     }
@@ -511,3 +548,4 @@ sub volume_has_feature {
 }
 
 1;
+# vim: set et sw=4 :
