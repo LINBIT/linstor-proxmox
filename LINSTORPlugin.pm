@@ -136,21 +136,40 @@ sub drbd_exists_locally {
             "--resources", $resname,
             "--nodes", $nodename);
 
-    return undef unless exists $r_list->[0]->{resource_states};
+    my (%resource, %resource_state);
+    eval {
+	%resource_state = map {
+	    $_->{rsc_name} => {
+		is_primary => !!$_->{in_use},
+		Diskless => scalar grep { $_->{disk_state} eq "Diskless" }
+					    @{$_->{vlm_states}},
+	    }
+	} @{$r_list->[0]->{resource_states}};
+	%resource = map {
+	    $_->{name} => {
+                backend => join(", ", map { $_->{backing_disk} } @{$_->{vlms}}),
+                DISKLESS => (scalar grep { $_ eq "DISKLESS" }
+                    @{$_->{rsc_flags} ||= []}),
+	    }
+	} @{$r_list->[0]->{resources}};
+    };
+    warn $@ if $@;
 
-    # We told linstor above to filter for resname,nodename already,
-    # so this "loop" should "iterate" over exactly one element now.
-    for my $res ( @{ $r_list->[0]->{resource_states} } ) {
-        if ( $res->{rsc_name} eq $resname and $res->{node_name} eq $nodename ) {
-            return 1 if not $disklessonly;
-            if ($disklessonly) {
-                return 1 if $res->{vlm_states}[0]->{disk_state} eq "Diskless";
-		# FIXME what if more than one volume per resource?
-            }
-        }
-    }
+    return undef unless exists $resource{$resname};
 
-    return undef;
+    # please clean up that mess manually yourself
+    die ("DRBD resource ($resname) defined but unconfigured (down) on node ($nodename)!?\n" .
+	 "'drbdadm adjust $resname' on $nodename may help.\n")
+    	unless exists $resource_state{$resname};
+
+    warn("WARNING:\n" .
+	 "  DRBD resource ($resname) expected to have local storage on node ($nodename), but is currently detached,\n" .
+	 "  possibly due to earlier IO problems on the backend ($resource{$resname}{backend}).\n" .
+	 "  'drbdadm adjust $resname' on $nodename may help.\n")
+ 	if $resource_state{$resname}{Diskless} and not $resource{$resname}{DISKLESS};
+
+    return 1 unless $disklessonly;
+    return $resource{$resname}{DISKLESS};
 }
 
 sub volname_and_snap_to_snapname {
@@ -464,9 +483,15 @@ sub deactivate_volume {
     return undef if ignore_volume($scfg, $volname);
 
     my $nodename = PVE::INotify::nodename();
-    if ( drbd_exists_locally( $scfg, $volname, $nodename, 1 ) ) {
-        print "Intentionally removing diskless assignment ($volname) on ($nodename).\n";
-        print "It will be re-created when the resource is actually used on this node.\n";
+    my $was_diskless_client = 0;
+
+    eval { $was_diskless_client = drbd_exists_locally($scfg, $volname, $nodename, 1); };
+    warn $@ if $@;
+    
+    if ($was_diskless_client) {
+	print	"\nNOTICE\n" .
+        	"  Intentionally removing diskless assignment ($volname) on ($nodename).\n" .
+        	"  It will be re-created when the resource is actually used on this node.\n";
         linstor_cmd(
             $scfg,
             [ 'resource', 'delete', $nodename, $volname ],
