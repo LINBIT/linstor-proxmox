@@ -4,4 +4,5 @@ if [ remove = "$1" -o abort-install = "$1" -o disappear = "$1" ]; then
 	dpkg-divert --package linstor-proxmox --remove --rename \
 		--divert /usr/share/perl5/PVE/Storage/DRBDPlugin.pm.proxmox /usr/share/perl5/PVE/Storage/DRBDPlugin.pm
 
+	invoke-rc.d pvedaemon restart || :
 fi
