@@ -511,6 +511,8 @@ sub volume_resize {
         [ 'volume-definition', 'set-size', $volname, 0, $size ],
         "Could not resize $volname"
     );
+    # TODO: remove, temporary fix for non-synchronous LINSTOR resize
+    sleep(10);
 
     return 1;
 }
