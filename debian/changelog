@@ -1,3 +1,26 @@
+linstor-proxmox (3.0.0-1) experimental; urgency=medium
+
+  [ Roland Kammerer ]
+  * linstor-proxmox version 2.9.1
+  * fix waiting until a resource is ready
+  * debian: add drbd-utils dependency
+  * deactivation: add hint if it is intentionally
+  * rename linstorpool -> storagepool
+  * debian: restart pvedaemon
+  * resize: temporary fix for async behavior
+
+  [ Lars Ellenberg ]
+  * use quotemeta ("\Q$controller_vm\E") to prevent it from being interpre [...]
+  * use $LINSTOR instead of /usr/bin/linstor; avoid qx{} "backtic" operator
+  * drbd_exists_locally(): have linstor filter for resname and node; FIXME [...]
+  * fix error message; add XXX use sysopen/sysread instead of dd
+  * status "freespace" reporting: iterate over all storage pools
+  * introduce linstorpool property
+  * explicit storpoolname related improvements for status and list_images
+  * fix activate/deactivate volume to not accidentally remove images
+
+ -- Roland Kammerer <roland.kammerer@linbit.com>  Mon, 08 Oct 2018 11:15:09 +0200
+
 linstor-proxmox (2.9.1-1) experimental; urgency=medium
 
   * Bugfix for GH #3
