@@ -384,6 +384,12 @@ sub list_images {
 
         next unless $name =~ /^vm-(\d+)-/;
         my $owner = $1; # aka "vmid"
+        my $volid = "$storeid:$name";
+
+        # filter, if we have been passed vmid or vollist
+        next if defined $vmid and $vmid ne $owner;
+        next if defined $vollist and
+                0 == (scalar grep { $_ eq $volid } @$vollist);
 
         # expect exactly one volume
         # XXX warn for 0 or >= 2 volume resources?
@@ -398,7 +404,7 @@ sub list_images {
         push @$res,
             {
                 format => 'raw',
-                volid => "$storeid:$name",
+                volid => $volid,
                 size => $size_kib * 1024,
                 vmid => $owner,
             };
