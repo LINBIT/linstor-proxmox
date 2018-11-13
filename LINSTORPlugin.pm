@@ -527,11 +527,10 @@ sub volume_snapshot {
     my ( $class, $scfg, $storeid, $volname, $snap ) = @_;
 
     my $snapname = volname_and_snap_to_snapname( $volname, $snap );
-    my $nodename = PVE::INotify::nodename();
     linstor_cmd(
         $scfg,
-        [ 'snapshot', 'create', $nodename, $volname, $snapname ],
-        "Could not create snapshot for $volname on $nodename"
+        [ 'snapshot', 'create', $volname, $snapname ],
+        "Could not create cluster wide snapshot for: $volname"
     );
 
     return 1;
