@@ -1,3 +1,9 @@
+linstor-proxmox (3.0.2-1) experimental; urgency=medium
+
+  * create snapshot on all diskful nodes
+
+ -- Roland Kammerer <roland.kammerer@linbit.com>  Tue, 13 Nov 2018 11:16:22 +0100
+
 linstor-proxmox (3.0.1-1) experimental; urgency=medium
 
   [ Lars Ellenberg ]
