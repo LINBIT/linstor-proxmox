@@ -1,3 +1,9 @@
+linstor-proxmox (3.0.2-2) experimental; urgency=medium
+
+  * PM broke the API with libpve-storage-perl 5.0-31, add a dependency
+
+ -- Roland Kammerer <roland.kammerer@linbit.com>  Fri, 16 Nov 2018 10:26:47 +0100
+
 linstor-proxmox (3.0.2-1) experimental; urgency=medium
 
   * create snapshot on all diskful nodes
