@@ -11,7 +11,7 @@ Architecture: all
 Depends: drbd-utils,
          linstor-client,
          libjson-perl,
-         libpve-storage-perl (<= 5.0-30),
+         libpve-storage-perl,
          ${misc:Depends},
          ${perl:Depends}
 Suggests: linstor-controller,

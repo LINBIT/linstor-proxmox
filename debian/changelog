@@ -1,3 +1,10 @@
+linstor-proxmox (3.0.2-3) experimental; urgency=medium
+
+  * PM fixed API compat with libpve-storage-perl 5.0-32.
+  * 5.0-31 was never in stable, pretend it never happened.
+
+ -- Roland Kammerer <roland.kammerer@linbit.com>  Tue, 27 Nov 2018 16:02:04 +0100
+
 linstor-proxmox (3.0.2-2) experimental; urgency=medium
 
   * PM broke the API with libpve-storage-perl 5.0-31, add a dependency
