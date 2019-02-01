@@ -8,7 +8,3 @@ Please read the user-guide provided at [docs.linbit.com](https://docs.linbit.com
 # Support
 For further products and professional support, please
 [contact](http://links.linbit.com/support) us.
-
-# Contributing
-Development is coordinated via [mailing lists](http://lists.linbit.com). Currently, we do not intend to use
-github issue tracking.
