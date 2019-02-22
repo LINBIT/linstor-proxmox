@@ -187,11 +187,19 @@ sub linstor_cmd {
 sub wait_connect_resource {
     my ($resource) = @_;
 
-    run_command(
-        [ 'drbdsetup', 'wait-connect-resource', $resource ],
-        errmsg => "Could not wait until replication established for ($resource)",
-        timeout => 60 # could use --wfc-timeout, but hey when we already do it proxmoxy...
-    );
+    eval {
+        run_command(
+            [ 'drbdsetup', 'wait-connect-resource', $resource ],
+            errmsg => "Could not wait until replication established for ($resource)",
+            timeout => 30 # could use --wfc-timeout, but hey when we already do it proxmoxy...
+        );
+    }; if ($@) {
+       warn $@;
+       open(my $fh, '-|', 'drbdadm', 'dstate', $resource) or die $!;
+       while (my $line = <$fh>) {
+           die "wait-connect-resource failed AND none UpToDate" if ($line !~ m/UpToDate/);
+       }
+    }
 }
 
 # Storage implementation
