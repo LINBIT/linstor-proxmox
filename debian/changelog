@@ -1,3 +1,12 @@
+linstor-proxmox (3.0.3-1) experimental; urgency=medium
+
+  * linstor-proxmox version 3.0.2-2
+  * linstor-proxmox version 3.0.2-3
+  * README.md: GH issues are fine
+  * wait-connect-resource: handle 2 node clusters
+
+ -- Roland Kammerer <rkammerer@aperol.linbit>  Mon, 25 Feb 2019 15:54:51 +0100
+
 linstor-proxmox (3.0.2-3) experimental; urgency=medium
 
   * PM fixed API compat with libpve-storage-perl 5.0-32.
