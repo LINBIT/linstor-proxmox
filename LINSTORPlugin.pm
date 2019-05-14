@@ -2,6 +2,7 @@ package PVE::Storage::Custom::LINSTORPlugin;
 
 use strict;
 use warnings;
+use Carp qw( confess );
 use IO::File;
 use JSON::XS qw( decode_json );
 use Data::Dumper;
@@ -123,7 +124,12 @@ sub decode_json_from_pipe {
 	}
 	local $/ = undef; # slurp mode
 	my $output = readline $pipe;
-	return decode_json($output);
+	my $decoded;
+	eval {
+		$decoded = decode_json($output);
+	};
+	confess $@ if $@;
+	return $decoded;
 }
 
 sub drbd_exists_locally {
