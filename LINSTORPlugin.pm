@@ -261,7 +261,7 @@ sub alloc_image {
     my $controller = get_controller($scfg);
     my $rd_list = decode_json_from_pipe(
         $LINSTOR, "--controllers=$controller", "-m",
-        "resource-definition", "list");
+        "volume-definition", "list");
     # [ { "rsc_dfns": [
     #       { "rsc_name": "XYZ", ...,
     #         "vlm_dfns": [ { "vlm_size": size-in-kiB, "vlm_nr": Nr, ... },
@@ -350,7 +350,7 @@ sub list_images {
 
     $cache->{"linstor:rd_list"} = decode_json_from_pipe(
             $LINSTOR, "--controllers=$controller", "-m",
-            "resource-definition", "list")
+            "volume-definition", "list")
         unless $cache->{"linstor:rd_list"};
     # [ { "rsc_dfns": [
     #       { "rsc_name": "XYZ", ...,
