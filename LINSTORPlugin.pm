@@ -19,7 +19,7 @@ use base qw(PVE::Storage::Plugin);
 my $default_redundancy = 2;
 my $default_controller = "localhost";
 my $default_controller_vm = "";
-my $APIVER = 1;
+my $APIVER = 2;
 
 my $LINSTOR = '/usr/bin/linstor';
 
@@ -208,7 +208,26 @@ sub wait_connect_resource {
     }
 }
 
+sub get_dev_path {
+    return "/dev/drbd/by-res/$_[0]/0";
+}
+
 # Storage implementation
+#
+# For APIVER 2
+sub map_volume {
+    my ($class, $storeid, $scfg, $volname, $snapname) = @_;
+
+    die "drbd snapshot is not implemented\n" if defined($snapname);
+
+    return get_dev_path "$volname";
+}
+
+# For APIVER 2
+sub unmap_volume {
+    return 1;
+}
+
 sub parse_volname {
     my ( $class, $volname ) = @_;
 
@@ -226,7 +245,7 @@ sub filesystem_path {
 
     my ( $vtype, $name, $vmid ) = $class->parse_volname($volname);
 
-    my $path = "/dev/drbd/by-res/$volname/0";
+    my $path = get_dev_path "$volname";
 
     return wantarray ? ( $path, $vmid, $vtype ) : $path;
 }
