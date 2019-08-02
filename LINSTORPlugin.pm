@@ -7,6 +7,9 @@ use IO::File;
 use JSON::XS qw( decode_json );
 use Data::Dumper;
 
+use LINBIT::Linstor;
+use LINBIT::PluginHelper;
+
 use PVE::Tools qw(run_command trim);
 use PVE::INotify;
 use PVE::Storage::Plugin;
@@ -19,9 +22,9 @@ use base qw(PVE::Storage::Plugin);
 my $default_redundancy = 2;
 my $default_controller = "localhost";
 my $default_controller_vm = "";
+# my $default_storagepool = "DfltStorPool";
+my $default_storagepool = "drbdpool";
 my $APIVER = 2;
-
-my $LINSTOR = '/usr/bin/linstor';
 
 sub api {
     return $APIVER;
@@ -59,10 +62,9 @@ sub properties {
         storagepool => {
              description => "The name of the LINSTOR storage pool to be used. Leave off if you want to use LINSTOR defaults.",
              type        => 'string',
-             default     => undef,
+             default     => $default_storagepool,
         },
     };
-## Please see file perltidy.ERR
 }
 
 sub options {
@@ -79,18 +81,16 @@ sub options {
 
 # helpers
 
-# returns "-s", "$poolname" if defined,
-# empty list otherwise.
-sub dash_s_poolname_if_defined {
-    my ($scfg) = @_;
-    defined $scfg->{storagepool} ?
-    ( "-s", $scfg->{storagepool} ) : ()
-}
-
 sub get_redundancy {
     my ($scfg) = @_;
 
     return $scfg->{redundancy} || $default_redundancy;
+}
+
+sub get_storagepool {
+    my ($scfg) = @_;
+
+    return $scfg->{storagepool} || $default_storagepool;
 }
 
 sub get_controller {
@@ -115,81 +115,12 @@ sub ignore_volume {
     return undef;
 }
 
-sub decode_json_from_pipe {
-	my $kid = open(my $pipe, '-|');
-	die "fork failed:  $!" unless defined $kid;
-	if ($kid == 0) {
-		exec { $_[0] } @_;
-		exit 1;
-	}
-	local $/ = undef; # slurp mode
-	my $output = readline $pipe;
-	my $decoded;
-	eval {
-		$decoded = decode_json($output);
-	};
-	confess $@ if $@;
-	return $decoded;
-}
-
-sub drbd_exists_locally {
-    my ( $scfg, $resname, $nodename, $disklessonly ) = @_;
-
-    my $controller = get_controller($scfg);
-    my $r_list = decode_json_from_pipe(
-	    $LINSTOR, "--controllers=$controller", "-m",
-            "resource", "list",
-            "--resources", $resname,
-            "--nodes", $nodename);
-
-    my (%resource, %resource_state);
-    eval {
-	%resource_state = map {
-	    $_->{rsc_name} => {
-		is_primary => !!$_->{in_use},
-		Diskless => scalar grep { $_->{disk_state} eq "Diskless" }
-					    @{$_->{vlm_states}},
-	    }
-	} @{$r_list->[0]->{resource_states}};
-	%resource = map {
-	    $_->{name} => {
-                backend => join(", ", map { $_->{backing_disk} } @{$_->{vlms}}),
-                DISKLESS => (scalar grep { $_ eq "DISKLESS" }
-                    @{$_->{rsc_flags} ||= []}),
-	    }
-	} @{$r_list->[0]->{resources}};
-    };
-    warn $@ if $@;
-
-    return undef unless exists $resource{$resname};
-
-    # please clean up that mess manually yourself
-    die ("DRBD resource ($resname) defined but unconfigured (down) on node ($nodename)!?\n" .
-	 "'drbdadm adjust $resname' on $nodename may help.\n")
-    	unless exists $resource_state{$resname};
-
-    warn("WARNING:\n" .
-	 "  DRBD resource ($resname) expected to have local storage on node ($nodename), but is currently detached,\n" .
-	 "  possibly due to earlier IO problems on the backend ($resource{$resname}{backend}).\n" .
-	 "  'drbdadm adjust $resname' on $nodename may help.\n")
- 	if $resource_state{$resname}{Diskless} and not $resource{$resname}{DISKLESS};
-
-    return 1 unless $disklessonly;
-    return $resource{$resname}{DISKLESS};
-}
-
 sub volname_and_snap_to_snapname {
     my ( $volname, $snap ) = @_;
     return "snap_${volname}_${snap}";
 }
 
-sub linstor_cmd {
-    my ( $scfg, $cmd, $errormsg ) = @_;
-    my $controller = get_controller($scfg);
-    unshift @$cmd, $LINSTOR, "--no-color", "--no-utf8", "--controllers=$controller";
-    run_command( $cmd, errmsg => $errormsg );
-}
-
+# TODO: LINSTOR is synchronous enough, remove that soon.
 sub wait_connect_resource {
     my ($resource) = @_;
 
@@ -212,11 +143,19 @@ sub get_dev_path {
     return "/dev/drbd/by-res/$_[0]/0";
 }
 
+sub linstor {
+    my ($scfg) = @_;
+
+    my $controller = get_controller($scfg);
+    my $cli = REST::Client->new( { host => "http://$controller:3370" } );
+    return LINBIT::Linstor->new( { cli => $cli } );
+}
+
 # Storage implementation
 #
 # For APIVER 2
 sub map_volume {
-    my ($class, $storeid, $scfg, $volname, $snapname) = @_;
+    my ( $class, $storeid, $scfg, $volname, $snapname ) = @_;
 
     die "drbd snapshot is not implemented\n" if defined($snapname);
 
@@ -267,7 +206,7 @@ sub alloc_image {
 
     # check if it is the controller, which always has exactly "disk-1"
     my $retname = $name;
-    if (!defined($name)) {
+    if ( !defined($name) ) {
         $retname = "vm-$vmid-disk-1";
     }
     return $retname if ignore_volume( $scfg, $retname );
@@ -277,32 +216,16 @@ sub alloc_image {
     die "illegal name '$name' - should be 'vm-$vmid-*'\n"
       if defined($name) && $name !~ m/^vm-$vmid-/;
 
-    my $controller = get_controller($scfg);
-    my $rd_list = decode_json_from_pipe(
-        $LINSTOR, "--controllers=$controller", "-m",
-        "volume-definition", "list");
-    # [ { "rsc_dfns": [
-    #       { "rsc_name": "XYZ", ...,
-    #         "vlm_dfns": [ { "vlm_size": size-in-kiB, "vlm_nr": Nr, ... },
-    #                       { ... } ] },
-    #       { ... }, { ... }
-    # ] } ]
-    #
-    # TODO:
-    # Currently we have/expect one resource per volume per proxmox disk image,
-    # we do not (yet) use or expect multi-volume resources, even thought it may
-    # be useful to have all vm images in one "consistency group".
-
-    # this is used to check for existence of rsc_name only:
-    my %resource = map { $_->{rsc_name} => 1 } @{$rd_list->[0]->{rsc_dfns}};
+    my $lsc       = linstor($scfg);
+    my $resources = $lsc->get_resources();
 
     die "volume '$name' already exists\n"
-      if defined($name) && exists $resource{$name};
+      if defined($name) && exists $resources->{$name};
 
     if ( !defined($name) ) {
         for ( my $i = 1 ; $i < 100 ; $i++ ) {
             my $tn = "vm-$vmid-disk-$i";
-            if ( !exists( $resource{$tn} ) ) {
+            if ( !exists( $resources->{$tn} ) ) {
                 $name = $tn;
                 last;
             }
@@ -312,34 +235,11 @@ sub alloc_image {
     die "unable to allocate an image name for VM $vmid in storage '$storeid'\n"
       if !defined($name);
 
-    $size = $size . 'kiB';
-    linstor_cmd(
-        $scfg,
-        [ 'resource-definition', 'create', $name ],
-        "Could not create resource definition $name"
-    );
-    linstor_cmd(
-        $scfg,
-        [
-            'resource-definition', 'drbd-options',
-            '--allow-two-primaries=yes', $name
-        ],
-        "Could not set 'allow-two-primaries'"
-    );
-    linstor_cmd(
-        $scfg,
-        [ 'volume-definition', 'create', $name, $size ],
-        "Could not create-volume-definition in $name resource"
-    );
-
-    my $redundancy = get_redundancy($scfg);
-    linstor_cmd(
-        $scfg,
-        [ 'resource', 'create', $name,
-          dash_s_poolname_if_defined($scfg),
-                '--auto-place', $redundancy ],
-        "Could not place $name"
-    );
+    eval {
+        $lsc->create_resource( $name, $size, get_storagepool($scfg),
+            get_redundancy($scfg) );
+    };
+    confess $@ if $@;
 
     return $name;
 }
@@ -347,15 +247,12 @@ sub alloc_image {
 sub free_image {
     my ( $class, $storeid, $scfg, $volname, $isBase ) = @_;
 
-    # die() does not really help in that case, the VM definition is still removed
-    # so we could just return undef, still this looks a bit cleaner
-    die "Not freeing contoller VM" if ignore_volume($scfg, $volname);
+   # die() does not really help in that case, the VM definition is still removed
+   # so we could just return undef, still this looks a bit cleaner
+    die "Not freeing contoller VM" if ignore_volume( $scfg, $volname );
 
-    linstor_cmd(
-        $scfg,
-        [ 'resource-definition', 'delete', $volname ],
-        "Could not remove $volname"
-    );
+    eval { linstor($scfg)->delete_resource($volname); };
+    confess $@ if $@;
 
     return undef;
 }
@@ -363,120 +260,39 @@ sub free_image {
 sub list_images {
     my ( $class, $storeid, $scfg, $vmid, $vollist, $cache ) = @_;
 
-    my $res = [];
-    my $nodename   = PVE::INotify::nodename();
-    my $controller = get_controller($scfg);
+    my $nodename = PVE::INotify::nodename();
 
-    $cache->{"linstor:rd_list"} = decode_json_from_pipe(
-            $LINSTOR, "--controllers=$controller", "-m",
-            "volume-definition", "list")
-        unless $cache->{"linstor:rd_list"};
-    # [ { "rsc_dfns": [
-    #       { "rsc_name": "XYZ", ...,
-    #         "vlm_dfns": [ { "vlm_size": size-in-kiB, "vlm_nr": Nr, ... },
-    #                       { ... } ] },
-    #       { ... }, { ... }
-    # ] } ]
-
-    $cache->{"linstor:r_list"} = decode_json_from_pipe(
-            $LINSTOR, "--controllers=$controller", "-m",
-            "resource", "list",
-            "--nodes", $nodename)
-        unless $cache->{"linstor:r_list"};
-    # [ { "resource_states": [ ... ],
-    #     "resources": [
-    #       { "vlms": [ { "stor_pool_name": storagepool, ... }, { ... } ],
-    #           "name": "XYZ", ...  }, { ... } ]
-    # } ]
+    $cache->{"linstor:resources"} = linstor($scfg)->get_resources()
+      unless $cache->{"linstor:resources"};
 
     # TODO:
     # Currently we have/expect one resource per volume per proxmox disk image,
     # we do not (yet) use or expect multi-volume resources, even thought it may
     # be useful to have all vm images in one "consistency group".
 
-    # Also, I'd like to have the actual current size reported
-    # in the "resource list", so I won't have to query both
-    # resource and resource-definition...
+    my $resources = $cache->{"linstor:resources"};
 
-    my ($rd_list, $r_list) = @$cache{qw(linstor:rd_list linstor:r_list)};
-
-    my %pool_of_res = map {
-        $_->{name} => $_->{vlms}->[0]->{stor_pool_name} // ""
-    } grep {
-        $_->{name} =~ /^vm-\d+-/ and
-        exists $_->{vlms} and scalar @{$_->{vlms}} == 1
-    } @{$r_list->[0]->{resources}};
-
-    # could also be written as map {} grep {} ...
-    # but a for loop is probably easier to maintain
-    for my $rsc (@{$rd_list->[0]->{rsc_dfns}}) {
-        my $name = $rsc->{rsc_name};
-
-        # skip if not on this node
-        next unless exists $pool_of_res{$name};
-
-        next unless $name =~ /^vm-(\d+)-/;
-        my $owner = $1; # aka "vmid"
-        my $volid = "$storeid:$name";
-
-        # filter, if we have been passed vmid or vollist
-        next if defined $vmid and $vmid ne $owner;
-        next if defined $vollist and
-                0 == (scalar grep { $_ eq $volid } @$vollist);
-
-        # expect exactly one volume
-        # XXX warn for 0 or >= 2 volume resources?
-        next unless exists $rsc->{vlm_dfns} and scalar @{$rsc->{vlm_dfns}} == 1;
-
-        my $size_kib = $rsc->{vlm_dfns}[0]{vlm_size};
-        my $pool = $pool_of_res{$name};
-
-        # filter by storagepool property, if set
-        next if $scfg->{storagepool} and $scfg->{storagepool} ne $pool;
-
-        push @$res,
-            {
-                format => 'raw',
-                volid => $volid,
-                size => $size_kib * 1024,
-                vmid => $owner,
-            };
-    }
-
-    return $res;
+    return LINBIT::PluginHelper::get_images( $storeid, $vmid, $vollist,
+        $resources, $nodename, get_storagepool($scfg) );
 }
 
 sub status {
     my ( $class, $storeid, $scfg, $cache ) = @_;
-    my $controller = get_controller($scfg);
-    my $nodename   = PVE::INotify::nodename();
+    my $nodename = PVE::INotify::nodename();
 
-    my ( $total, $avail );
+    $cache->{"linstor:storagepools"} = linstor($scfg)->get_storagepools()
+      unless $cache->{"linstor:storagepools"};
+    my $storagepools = $cache->{"linstor:storagepools"};
 
-    $cache->{"linstor:sp_list"} = decode_json_from_pipe(
-	    $LINSTOR, "--controllers=$controller", "-m",
-            "storage-pool", "list", "--nodes", $nodename)
-        unless $cache->{"linstor:sp_list"};
-    my $sp_list = $cache->{"linstor:sp_list"};
-
-    # To use the $cache, we do NOT filter for poolname above.
-    # Iterate over "all of them",
-    # aggregate in case it was undefined,
-    # because that's effectively what we will get if we create a
-    # new volume with auto-place without specifying the pool name.
-    # Or filter here if it was defined.
-    for my $pool (@{$sp_list->[0]->{stor_pools}}) {
-        next if $scfg->{storagepool} and $scfg->{storagepool} ne $pool->{stor_pool_name};
-	$avail += $pool->{free_space}->{free_capacity};
-	$total += $pool->{free_space}->{total_capacity};
-    }
-
+    my ( $total, $avail ) =
+      LINBIT::PluginHelper::get_status( $storagepools, get_storagepool($scfg),
+        $nodename );
     return undef unless $total;
 
     # they want it in bytes
     $total *= 1024;
     $avail *= 1024;
-    return ($total, $avail, $total - $avail, 1);
+    return ( $total, $avail, $total - $avail, 1 );
 }
 
 sub activate_storage {
@@ -496,18 +312,14 @@ sub activate_volume {
 
     die "Snapshot not implemented on DRBD\n" if $snapname;
 
-    return undef if ignore_volume($scfg, $volname);
+    return undef if ignore_volume( $scfg, $volname );
 
     my $path = $class->path( $scfg, $volname );
 
     my $nodename = PVE::INotify::nodename();
 
-    # create diskless assignment if required
-    linstor_cmd(
-        $scfg,
-        [ 'resource', 'create', '--diskless', $nodename, $volname ],
-        "Could not create diskless resource ($volname) on ($nodename)"
-    ) unless drbd_exists_locally( $scfg, $volname, $nodename, 0 );
+    eval { linstor($scfg)->activate_resource( $volname, $nodename ); };
+    confess $@ if $@;
 
     wait_connect_resource($volname);
 
@@ -519,23 +331,23 @@ sub deactivate_volume {
 
     die "Snapshot not implemented on DRBD\n" if $snapname;
 
-    return undef if ignore_volume($scfg, $volname);
+    return undef if ignore_volume( $scfg, $volname );
 
     my $nodename = PVE::INotify::nodename();
-    my $was_diskless_client = 0;
 
-    eval { $was_diskless_client = drbd_exists_locally($scfg, $volname, $nodename, 1); };
-    warn $@ if $@;
-    
+# deactivate_resource only removes the assignment if diskless, so this could be a single call.
+# We do all this unnecessary dance to print the NOTICE.
+    my $lsc = linstor($scfg);
+    my $was_diskless_client =
+      $lsc->resource_exists_intentionally_diskless( $volname, $nodename );
+
     if ($was_diskless_client) {
-	print	"\nNOTICE\n" .
-        	"  Intentionally removing diskless assignment ($volname) on ($nodename).\n" .
-        	"  It will be re-created when the resource is actually used on this node.\n";
-        linstor_cmd(
-            $scfg,
-            [ 'resource', 'delete', $nodename, $volname ],
-            "Could not delete  resource ($volname) on $nodename)"
-        );
+        print "\nNOTICE\n"
+          . "  Intentionally removing diskless assignment ($volname) on ($nodename).\n"
+          . "  It will be re-created when the resource is actually used on this node.\n";
+
+        eval { $lsc->deactivate_resource( $volname, $nodename ); };
+        confess $@ if $@;
     }
 
     return undef;
@@ -544,12 +356,11 @@ sub deactivate_volume {
 sub volume_resize {
     my ( $class, $scfg, $storeid, $volname, $size, $running ) = @_;
 
-    $size = ( $size / 1024 ) . 'kiB';
-    linstor_cmd(
-        $scfg,
-        [ 'volume-definition', 'set-size', $volname, 0, $size ],
-        "Could not resize $volname"
-    );
+    my $size_kib = ( $size / 1024 );
+
+    eval { linstor($scfg)->resize_resource( $volname, $size_kib ); };
+    confess $@ if $@;
+
     # TODO: remove, temporary fix for non-synchronous LINSTOR resize
     sleep(10);
 
@@ -558,13 +369,10 @@ sub volume_resize {
 
 sub volume_snapshot {
     my ( $class, $scfg, $storeid, $volname, $snap ) = @_;
-
     my $snapname = volname_and_snap_to_snapname( $volname, $snap );
-    linstor_cmd(
-        $scfg,
-        [ 'snapshot', 'create', $volname, $snapname ],
-        "Could not create cluster wide snapshot for: $volname"
-    );
+
+    eval { linstor($scfg)->create_snapshot( $volname, $snapname ); };
+    confess $@ if $@;
 
     return 1;
 }
@@ -579,11 +387,8 @@ sub volume_snapshot_delete {
     my ( $class, $scfg, $storeid, $volname, $snap ) = @_;
     my $snapname = volname_and_snap_to_snapname( $volname, $snap );
 
-    linstor_cmd(
-        $scfg,
-        [ 'snapshot', 'delete', $volname, $snapname ],
-        "Could not remove snapshot $snapname for resource $volname"
-    );
+    eval { linstor($scfg)->delete_snapshot( $volname, $snapname ); };
+    confess $@ if $@;
 
     return 1;
 }

@@ -14,6 +14,8 @@ deb:
 install:
 	install -D -m 0644 ./DRBDPlugin.pm.divert ${DESTDIR}$(PERLDIR)/PVE/Storage/DRBDPlugin.pm
 	install -D -m 0644 ./LINSTORPlugin.pm ${DESTDIR}$(PERLDIR)/PVE/Storage/Custom/LINSTORPlugin.pm
+	install -D -m 0644 ./LINBIT/Linstor.pm ${DESTDIR}$(PERLDIR)/LINBIT/Linstor.pm
+	install -D -m 0644 ./LINBIT/PluginHelper.pm ${DESTDIR}$(PERLDIR)/LINBIT/PluginHelper.pm
 
 ifndef VERSION
 debrelease:
@@ -27,6 +29,8 @@ debrelease:
 		$(REL)/README.md \
 		$(REL)/DRBDPlugin.pm.divert \
 		$(REL)/LINSTORPlugin.pm \
+		$(REL)/LINBIT/Linstor.pm \
+		$(REL)/LINBIT/PluginHelper.pm \
 		$(REL)/debian
 	if test -L "$(REL)"; then rm $(REL); fi
 endif
