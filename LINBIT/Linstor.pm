@@ -28,7 +28,7 @@ sub update_resources {
     my $self = shift;
 
     my $res_info = {};
-    my $ret = $self->{cli}->GET('/v1/view/resources');
+    my $ret      = $self->{cli}->GET('/v1/view/resources');
     dieContent "Could not get resource information", $ret
       unless $ret->responseCode() eq '200';
 
@@ -48,13 +48,18 @@ sub update_resources {
             next;
         }
 
-        my $conf_as_diskless =
-          lc $lr->{volumes}[0]{provider_kind} eq lc 'DISKLESS';
-        my $current_state     = lc $lr->{volumes}[0]{state}{disk_state};
-        my $storage_pool_name = $lr->{volumes}[0]{storage_pool_name};
+        my $conf_as_diskless = $lr->{volumes}[0]{provider_kind} || '';
+        $conf_as_diskless = lc $conf_as_diskless eq lc 'DISKLESS';
+
+        my $current_state = $lr->{volumes}[0]{state}{disk_state} || '';
+        $current_state = lc $current_state;
+
+        my $storage_pool_name = $lr->{volumes}[0]{storage_pool_name} || '';
+
         my $usable_size_kib =
-          $lr->{layer_object}{drbd}{drbd_volumes}[0]{usable_size_kib};
-        my $nr_vols = @{$lr->{volumes}};
+          $lr->{layer_object}{drbd}{drbd_volumes}[0]{usable_size_kib} || 0;
+
+        my $nr_vols = @{ $lr->{volumes} } || 0;
 
         $res_info->{$res_name}->{$node_name} = {
             "cur_state"         => $current_state,
@@ -94,9 +99,11 @@ sub update_storagepools {
             next;
         }
 
-        my $conf_as_diskless   = lc $sp->{provider_kind} eq lc 'DISKLESS';
-        my $free_capacity_kib  = $sp->{free_capacity};
-        my $total_capacity_kib = $sp->{total_capacity};
+        my $conf_as_diskless   = $sp->{provider_kind} || '';
+        $conf_as_diskless   = lc $conf_as_diskless eq lc 'DISKLESS';
+
+        my $free_capacity_kib  = $sp->{free_capacity} || 0;
+        my $total_capacity_kib = $sp->{total_capacity} || 0;
 
         $sp_info->{$sp_name}->{$node_name} = {
             "conf_as_diskless"   => $conf_as_diskless,
