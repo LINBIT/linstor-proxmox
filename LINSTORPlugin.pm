@@ -262,7 +262,20 @@ sub free_image {
    # so we could just return undef, still this looks a bit cleaner
     die "Not freeing contoller VM" if ignore_volume( $scfg, $volname );
 
-    eval { linstor($scfg)->delete_resource($volname); };
+    my $lsc = linstor($scfg);
+    my $in_use = 1;
+
+    foreach (0..9) {
+      my $resources = $lsc->update_resources();
+      $in_use = $resources->{$volname}->{in_use};
+      last if (! $in_use);
+      sleep(1);
+    }
+
+    warn "Resource $volname still in use after giving it some time" if ($in_use);
+
+    # yolo, what else should we do...
+    eval { $lsc->delete_resource($volname); };
     confess $@ if $@;
 
     return undef;

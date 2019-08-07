@@ -56,11 +56,14 @@ sub update_resources {
 
         my $storage_pool_name = $lr->{volumes}[0]{storage_pool_name} || '';
 
+        my $in_use = $lr->{state}{in_use} || 0;
+
         my $usable_size_kib =
           $lr->{layer_object}{drbd}{drbd_volumes}[0]{usable_size_kib} || 0;
 
         my $nr_vols = @{ $lr->{volumes} } || 0;
 
+        $res_info->{$res_name}->{in_use} = $in_use;
         $res_info->{$res_name}->{$node_name} = {
             "cur_state"         => $current_state,
             "conf_as_diskless"  => $conf_as_diskless,
