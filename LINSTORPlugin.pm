@@ -12,6 +12,7 @@ use LINBIT::PluginHelper;
 
 use PVE::Tools qw(run_command trim);
 use PVE::INotify;
+use PVE::Storage;
 use PVE::Storage::Plugin;
 use PVE::JSONSchema qw(get_standard_option);
 
@@ -24,10 +25,20 @@ my $default_controller = "localhost";
 my $default_controller_vm = "";
 # my $default_storagepool = "DfltStorPool";
 my $default_storagepool = "drbdpool";
-my $APIVER = 2;
 
 sub api {
-    return $APIVER;
+   # PVE 5: APIVER 2
+   # PVE 6: APIVER 3
+   # we support both, we just have to be careful what we return
+   # as for example PVE5 would not like a APIVER 3
+
+   my $apiver = PVE::Storage::APIVER;
+
+   if ($apiver >= 2 and $apiver <= 3) {
+      return $apiver;
+   }
+
+   return 3;
 }
 
 # we have to name it drbd, there is a hardcoded 'drbd' in Plugin.pm
