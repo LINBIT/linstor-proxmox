@@ -338,14 +338,14 @@ sub activate_volume {
 
     return undef if ignore_volume( $scfg, $volname );
 
-    my $path = $class->path( $scfg, $volname );
-
     my $nodename = PVE::INotify::nodename();
 
     eval { linstor($scfg)->activate_resource( $volname, $nodename ); };
     confess $@ if $@;
 
     wait_connect_resource($volname);
+
+    system ('blockdev --setrw ' . get_dev_path $volname);
 
     return undef;
 }
