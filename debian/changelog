@@ -1,3 +1,14 @@
+linstor-proxmox (4.0.0-1) experimental; urgency=medium
+
+  * implement APIVER 2
+  * switch to REST-API
+  * Linstor: saner defaults for not set variables
+  * support APIVER 2 and 3 "on the fly"
+  * poll in_use before delete
+  * kvm: mark DRBD device as RW
+
+ -- Roland Kammerer <roland.kammerer@linbit.com>  Fri, 09 Aug 2019 12:33:08 +0200
+
 linstor-proxmox (3.0.4-1) experimental; urgency=medium
 
   [ Lars Ellenberg ]
