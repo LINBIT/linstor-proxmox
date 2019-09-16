@@ -6,6 +6,7 @@ use Carp qw( confess );
 use IO::File;
 use JSON::XS qw( decode_json );
 use Data::Dumper;
+use REST::Client;
 
 use LINBIT::Linstor;
 use LINBIT::PluginHelper;
@@ -25,6 +26,9 @@ my $default_controller = "localhost";
 my $default_controller_vm = "";
 # my $default_storagepool = "DfltStorPool";
 my $default_storagepool = "drbdpool";
+
+my $disabled_resourcegroup = "";
+my $default_resourcegroup = $disabled_resourcegroup;
 
 sub api {
    # PVE 5: APIVER 2
@@ -75,18 +79,24 @@ sub properties {
              type        => 'string',
              default     => $default_storagepool,
         },
+        resourcegroup => {
+             description => "The name of a LINSTOR resource group which defines the deployment of new VMs.",
+             type        => 'string',
+             default     => $default_resourcegroup,
+        },
     };
 }
 
 sub options {
     return {
-        redundancy   => { optional => 1 },
-        storagepool  => { optional => 1 },
-        controller   => { optional => 1 },
-        controllervm => { optional => 1 },
-        content      => { optional => 1 },
-        nodes        => { optional => 1 },
-        disable      => { optional => 1 },
+        redundancy    => { optional => 1 },
+        storagepool   => { optional => 1 },
+        controller    => { optional => 1 },
+        controllervm  => { optional => 1 },
+        resourcegroup => { optional => 1 },
+        content       => { optional => 1 },
+        nodes         => { optional => 1 },
+        disable       => { optional => 1 },
     };
 }
 
@@ -98,16 +108,40 @@ sub get_redundancy {
     return $scfg->{redundancy} || $default_redundancy;
 }
 
-sub get_storagepool {
+sub get_resource_group {
     my ($scfg) = @_;
 
-    return $scfg->{storagepool} || $default_storagepool;
+    return $scfg->{resourcegroup} || $default_resourcegroup;
 }
 
 sub get_controller {
     my ($scfg) = @_;
 
     return $scfg->{controller} || $default_controller;
+}
+
+sub linstor {
+    my ($scfg) = @_;
+
+    my $controller = get_controller($scfg);
+    my $cli = REST::Client->new( { host => "http://$controller:3370" } );
+    return LINBIT::Linstor->new( { cli => $cli } );
+}
+
+sub get_storagepool {
+    my ($scfg) = @_;
+
+    my $res_grp = get_resource_group($scfg);
+
+    # do we want to get it from the resource group?
+    if ( $res_grp ne $disabled_resourcegroup ) {
+        my $sp = linstor($scfg)->get_storagepool_for_resource_group($res_grp);
+        die
+"Have resource group, but storage pool is undefined for resource group $res_grp"
+          unless defined($sp);
+        return $sp;
+    }    # else "legacy"
+    return $scfg->{storagepool} || $default_storagepool;
 }
 
 sub get_controller_vm {
@@ -154,13 +188,6 @@ sub get_dev_path {
     return "/dev/drbd/by-res/$_[0]/0";
 }
 
-sub linstor {
-    my ($scfg) = @_;
-
-    my $controller = get_controller($scfg);
-    my $cli = REST::Client->new( { host => "http://$controller:3370" } );
-    return LINBIT::Linstor->new( { cli => $cli } );
-}
 
 # Storage implementation
 #
@@ -247,8 +274,13 @@ sub alloc_image {
       if !defined($name);
 
     eval {
+      my $res_grp = get_resource_group($scfg);
+      if ($res_grp ne $disabled_resourcegroup) {
+        $lsc->create_resource( $name, $size, $res_grp );
+      } else {
         $lsc->create_resource( $name, $size, get_storagepool($scfg),
             get_redundancy($scfg) );
+      }
     };
     confess $@ if $@;
 
@@ -288,6 +320,8 @@ sub list_images {
 
     $cache->{"linstor:resources"} = linstor($scfg)->get_resources()
       unless $cache->{"linstor:resources"};
+    $cache->{"linstor:sp"} = get_storagepool($scfg)
+      unless $cache->{"linstor:sp"};
 
     # TODO:
     # Currently we have/expect one resource per volume per proxmox disk image,
@@ -295,9 +329,10 @@ sub list_images {
     # be useful to have all vm images in one "consistency group".
 
     my $resources = $cache->{"linstor:resources"};
+    my $sp = $cache->{"linstor:sp"};
 
     return LINBIT::PluginHelper::get_images( $storeid, $vmid, $vollist,
-        $resources, $nodename, get_storagepool($scfg) );
+        $resources, $nodename, $sp );
 }
 
 sub status {
@@ -307,9 +342,12 @@ sub status {
     $cache->{"linstor:storagepools"} = linstor($scfg)->get_storagepools()
       unless $cache->{"linstor:storagepools"};
     my $storagepools = $cache->{"linstor:storagepools"};
+    $cache->{"linstor:sp"} = get_storagepool($scfg)
+      unless $cache->{"linstor:sp"};
+    my $sp = $cache->{"linstor:sp"};
 
     my ( $total, $avail ) =
-      LINBIT::PluginHelper::get_status( $storagepools, get_storagepool($scfg),
+      LINBIT::PluginHelper::get_status( $storagepools, $sp,
         $nodename );
     return undef unless $total;
 

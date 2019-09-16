@@ -168,7 +168,7 @@ sub resource_exists_intentionally_diskless {
 }
 
 
-sub create_resource {
+sub create_resource_manual {
     my ( $self, $name, $size_kib, $storage_pool, $place_count ) = @_;
 
     my $ret = $self->{cli}->POST( '/v1/resource-definitions',
@@ -209,6 +209,56 @@ sub create_resource {
     );
     dieContent "Could not autoplace resource $name", $ret
       unless $ret->responseCode() eq '201';
+
+    return 1;
+}
+
+sub create_resource_res_group {
+    my ( $self, $name, $size_kib, $resgroup_name ) = @_;
+
+    my $ret = $self->{cli}->POST(
+        "/v1/resource-groups/$resgroup_name/spawn",
+        encode_json(
+            {
+                resource_definition_name => $name,
+                volume_sizes             => [$size_kib]
+            }
+        )
+    );
+
+    dieContent
+"Could not create resource definition $name from resource group $resgroup_name",
+      $ret
+      unless $ret->responseCode() eq '201';
+
+    return 1;
+}
+
+sub create_resource {
+    my ( $self, $name ) = @_;
+
+    if ( @_ == 4 ) {
+        create_resource_res_group @_;
+    }
+    elsif ( @_ == 5 ) {
+        create_resource_manual @_;
+    }
+    else {
+        die "create_resource called with invalid number of parameters";
+    }
+
+    my $ret = $self->{cli}->PUT(
+        "/v1/resource-definitions/$name",
+        encode_json(
+            {
+                override_props =>
+                  { 'DrbdOptions/Net/allow-two-primaries' => 'yes' }
+            }
+        )
+    );
+    dieContent "Could not set allow-two-primaries on resource definition $name",
+      $ret
+      unless $ret->responseCode() eq '200';
 
     return 1;
 }
@@ -322,6 +372,20 @@ sub delete_snapshot {
       unless $ret->responseCode() eq '200';
 
     return undef;
+}
+
+sub get_storagepool_for_resource_group {
+    my ( $self, $resgroup_name ) = @_;
+
+    my $ret = $self->{cli}->GET("/v1/resource-groups/$resgroup_name");
+    dieContent "Could not get resource information", $ret
+      unless $ret->responseCode() eq '200';
+
+    my $resgroups;
+    eval { $resgroups = decode_json( $ret->responseContent() ); };
+    die $@ if $@;
+
+    return $resgroups->{select_filter}->{storage_pool};
 }
 
 1;
