@@ -1,3 +1,9 @@
+linstor-proxmox (4.1.0-1) experimental; urgency=medium
+
+  * add support for resource groups
+
+ -- Roland Kammerer <roland.kammerer@linbit.com>  Tue, 24 Sep 2019 13:16:44 +0200
+
 linstor-proxmox (4.0.0-1) experimental; urgency=medium
 
   * implement APIVER 2
