@@ -342,9 +342,7 @@ sub status {
     $cache->{"linstor:storagepools"} = linstor($scfg)->get_storagepools()
       unless $cache->{"linstor:storagepools"};
     my $storagepools = $cache->{"linstor:storagepools"};
-    $cache->{"linstor:sp"} = get_storagepool($scfg)
-      unless $cache->{"linstor:sp"};
-    my $sp = $cache->{"linstor:sp"};
+    my $sp = get_storagepool($scfg);
 
     my ( $total, $avail ) =
       LINBIT::PluginHelper::get_status( $storagepools, $sp,
