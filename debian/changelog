@@ -1,3 +1,9 @@
+linstor-proxmox (4.1.1-1) experimental; urgency=medium
+
+  * status: do not cache the storage pool
+
+ -- Roland Kammerer <roland.kammerer@linbit.com>  Mon, 18 Nov 2019 09:12:40 +0100
+
 linstor-proxmox (4.1.0-1) experimental; urgency=medium
 
   * add support for resource groups
