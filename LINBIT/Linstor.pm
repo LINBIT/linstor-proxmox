@@ -13,7 +13,7 @@ use Carp qw( confess );
 sub dieContent {
 	my ($msg, $restErr) = @_;
 	# TODO: format it nicely
-	die $msg . ", because:\n". $restErr->responseContent() . "\n";
+	die "API Return-Code: " . $restErr->responseCode() . ". Message: " . $msg . ", because:\n". $restErr->responseContent() . "\n";
 }
 
 # This plugin is thingle threaded, a real library would need a mutex around self->{xyz}
