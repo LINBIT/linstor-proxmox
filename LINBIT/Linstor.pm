@@ -176,19 +176,6 @@ sub create_resource_manual {
     dieContent "Could not create resource definition $name", $ret
       unless $ret->responseCode() eq '201';
 
-    $ret = $self->{cli}->PUT(
-        "/v1/resource-definitions/$name",
-        encode_json(
-            {
-                override_props =>
-                  { 'DrbdOptions/Net/allow-two-primaries' => 'yes' }
-            }
-        )
-    );
-    dieContent "Could not set allow-two-primaries on resource definition $name",
-      $ret
-      unless $ret->responseCode() eq '200';
-
     $ret = $self->{cli}->POST(
         "/v1/resource-definitions/$name/volume-definitions",
         encode_json( { volume_definition => { size_kib => $size_kib } } )
