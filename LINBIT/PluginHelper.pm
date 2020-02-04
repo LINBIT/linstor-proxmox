@@ -59,6 +59,9 @@ sub get_status {
         # skip if not on this node
         next unless exists $storage_pools->{$name}->{$node_name};
 
+        # skip diskless pools. LINSTOR considers them having infinite space, so they have some MAX values.
+        next if $storage_pools->{$name}->{$node_name}->{conf_as_diskless};
+
         $avail_kib += $storage_pools->{$name}->{$node_name}->{free_capacity_kib};
         $total_kib += $storage_pools->{$name}->{$node_name}->{total_capacity_kib};
     }
