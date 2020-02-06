@@ -1,3 +1,11 @@
+linstor-proxmox (4.1.2-1) experimental; urgency=medium
+
+  * LINSTOR.pm: rm code duplication on create
+  * LINSTOR.pm: add REST-API return code in err msgs
+  * fix custom diskless pools
+
+ -- Roland Kammerer <roland.kammerer@linbit.com>  Thu, 06 Feb 2020 11:30:34 +0100
+
 linstor-proxmox (4.1.1-1) experimental; urgency=medium
 
   * status: do not cache the storage pool
