@@ -6,6 +6,7 @@ use warnings;
 use REST::Client;
 use JSON::XS qw( decode_json );
 use JSON::XS qw( encode_json );
+use Types::Serialiser;
 use Carp qw( confess );
 
 ## helpers
@@ -201,22 +202,52 @@ sub create_resource_manual {
 }
 
 sub create_resource_res_group {
-    my ( $self, $name, $size_kib, $resgroup_name ) = @_;
+    my ( $self, $name, $size_kib, $resgroup_name, $local_node_name ) = @_;
+
+    my $definitions_only = Types::Serialiser::false;
+    if ( defined($local_node_name) ) {
+        $definitions_only = Types::Serialiser::true;
+    }
 
     my $ret = $self->{cli}->POST(
         "/v1/resource-groups/$resgroup_name/spawn",
         encode_json(
             {
                 resource_definition_name => $name,
+                definitions_only         => $definitions_only,
                 volume_sizes             => [$size_kib]
             }
         )
     );
 
-    dieContent
-"Could not create resource definition $name from resource group $resgroup_name",
-      $ret
+    dieContent "Could not create resource definition $name from resource group $resgroup_name", $ret
       unless $ret->responseCode() eq '201';
+
+    if ($definitions_only) {
+        # maybe it can not even get local storage. just ignore the return value, the autoplace fixes it
+        # alternatively we could first check if the node even has the SP.
+        my $sp = $self->get_storagepool_for_resource_group($resgroup_name);
+        $ret = $self->{cli}->POST(
+            "/v1/resource-definitions/$name/resources",
+            encode_json(
+                [
+                    {
+                        "resource" => {
+                            "node_name" => $local_node_name,
+                            "props"     => { "StorPoolName" => $sp }
+                        }
+                    }
+                ]
+            )
+        );
+        print "  Diskfull assignment failed, let's autoplace it.\n"
+          unless $ret->responseCode() eq '201';
+
+        $ret = $self->{cli}->POST( "/v1/resource-definitions/$name/autoplace",
+            encode_json( {} ) );
+        dieContent "Could not autoplace resource $name", $ret
+          unless $ret->responseCode() eq '201';
+    }
 
     return 1;
 }
@@ -224,15 +255,7 @@ sub create_resource_res_group {
 sub create_resource {
     my ( $self, $name ) = @_;
 
-    if ( @_ == 4 ) {
-        create_resource_res_group @_;
-    }
-    elsif ( @_ == 5 ) {
-        create_resource_manual @_;
-    }
-    else {
-        die "create_resource called with invalid number of parameters";
-    }
+    create_resource_res_group @_;
 
     my $ret = $self->{cli}->PUT(
         "/v1/resource-definitions/$name",

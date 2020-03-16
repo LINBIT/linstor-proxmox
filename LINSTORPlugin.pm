@@ -24,11 +24,8 @@ use base qw(PVE::Storage::Plugin);
 my $default_redundancy = 2;
 my $default_controller = "localhost";
 my $default_controller_vm = "";
-# my $default_storagepool = "DfltStorPool";
-my $default_storagepool = "drbdpool";
-
-my $disabled_resourcegroup = "";
-my $default_resourcegroup = $disabled_resourcegroup;
+my $default_resourcegroup = "drbdgrp";
+my $default_prefer_local_storage = "no";
 
 sub api {
    # PVE 5: APIVER 2
@@ -56,14 +53,6 @@ sub plugindata {
 
 sub properties {
     return {
-        redundancy => {
-            description =>
-"The redundancy count specifies the number of nodes to which the resource should be deployed. It must be at least 1 and at most the number of nodes in the cluster.",
-            type    => 'integer',
-            minimum => 1,
-            maximum => 16,
-            default => $default_redundancy,
-        },
         controller => {
             description => "The IP of the active controller",
             type        => 'string',
@@ -74,28 +63,26 @@ sub properties {
             type        => 'string',
             default     => $default_controller_vm,
         },
-        storagepool => {
-             description => "The name of the LINSTOR storage pool to be used. Leave off if you want to use LINSTOR defaults.",
-             type        => 'string',
-             default     => $default_storagepool,
-        },
         resourcegroup => {
              description => "The name of a LINSTOR resource group which defines the deployment of new VMs.",
              type        => 'string',
              default     => $default_resourcegroup,
+        },
+        preferlocal => {
+             description => "Prefer to create local storage (yes/no)",
+             type        => 'string',
+             default     => $default_prefer_local_storage,
         },
     };
 }
 
 sub options {
     return {
-        redundancy    => { optional => 1 },
-        storagepool   => { optional => 1 },
         controller    => { optional => 1 },
         controllervm  => { optional => 1 },
-        resourcegroup => { optional => 1 },
+        resourcegroup => { optional => 0 },
+        preferlocal   => { optional => 1 },
         content       => { optional => 1 },
-        nodes         => { optional => 1 },
         disable       => { optional => 1 },
     };
 }
@@ -120,6 +107,18 @@ sub get_controller {
     return $scfg->{controller} || $default_controller;
 }
 
+sub get_preferred_local_node {
+    my ($scfg) = @_;
+
+    my $pref = $scfg->{preferlocal} || $default_prefer_local_storage;
+
+    if ( lc $pref eq 'yes' ) {
+        return PVE::INotify::nodename();
+    }
+
+    return undef;
+}
+
 sub linstor {
     my ($scfg) = @_;
 
@@ -133,15 +132,10 @@ sub get_storagepool {
 
     my $res_grp = get_resource_group($scfg);
 
-    # do we want to get it from the resource group?
-    if ( $res_grp ne $disabled_resourcegroup ) {
-        my $sp = linstor($scfg)->get_storagepool_for_resource_group($res_grp);
-        die
-"Have resource group, but storage pool is undefined for resource group $res_grp"
-          unless defined($sp);
-        return $sp;
-    }    # else "legacy"
-    return $scfg->{storagepool} || $default_storagepool;
+    my $sp = linstor($scfg)->get_storagepool_for_resource_group($res_grp);
+    die "Have resource group, but storage pool is undefined for resource group $res_grp"
+      unless defined($sp);
+    return $sp;
 }
 
 sub get_controller_vm {
@@ -274,13 +268,13 @@ sub alloc_image {
       if !defined($name);
 
     eval {
-      my $res_grp = get_resource_group($scfg);
-      if ($res_grp ne $disabled_resourcegroup) {
-        $lsc->create_resource( $name, $size, $res_grp );
-      } else {
-        $lsc->create_resource( $name, $size, get_storagepool($scfg),
-            get_redundancy($scfg) );
-      }
+        my $res_grp         = get_resource_group($scfg);
+        my $local_node_name = get_preferred_local_node($scfg);
+        if ( defined($local_node_name) ) {
+            print "\nNOTICE\n"
+              . "  Trying to create diskful resource ($name) on ($local_node_name).\n";
+        }
+        $lsc->create_resource( $name, $size, $res_grp, $local_node_name );
     };
     confess $@ if $@;
 
