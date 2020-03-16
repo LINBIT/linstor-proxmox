@@ -1,3 +1,9 @@
+linstor-proxmox (5.0.0-1) experimental; urgency=medium
+
+  * create: create storage locally if possible
+
+ -- Roland Kammerer <roland.kammerer@linbit.com>  Tue, 24 Mar 2020 13:57:00 +0100
+
 linstor-proxmox (4.1.2-1) experimental; urgency=medium
 
   * LINSTOR.pm: rm code duplication on create
