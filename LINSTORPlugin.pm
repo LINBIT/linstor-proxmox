@@ -30,12 +30,14 @@ my $default_prefer_local_storage = "no";
 sub api {
    # PVE 5: APIVER 2
    # PVE 6: APIVER 3
-   # we support both, we just have to be careful what we return
+   # PVE 6: APIVER 4 e6f4eed43581de9b9706cc2263c9631ea2abfc1a / volume_has_feature
+   # PVE 6: APIVER 5 a97d3ee49f21a61d3df10d196140c95dde45ec27 / allow rename
+   # we support all (not all features), we just have to be careful what we return
    # as for example PVE5 would not like a APIVER 3
 
    my $apiver = PVE::Storage::APIVER;
 
-   if ($apiver >= 2 and $apiver <= 3) {
+   if ($apiver >= 2 and $apiver <= 5) {
       return $apiver;
    }
 
