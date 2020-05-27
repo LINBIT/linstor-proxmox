@@ -314,6 +314,9 @@ sub deactivate_resource {
     return undef
       unless $self->resource_exists_intentionally_diskless( $name, $node_name );
 
+    # in case this was the auto tie-breaker:
+    # on activation, when the resource became diskless *Primary, the TB flag got removed, it became a regular diskless.
+    # on deactivation, LINSTOR sees the delete below, but does not delete the diskless, but converts it to a TB again.
     my $ret = $self->{cli}
       ->DELETE("/v1/resource-definitions/$name/resources/$node_name");
 
