@@ -192,7 +192,7 @@ sub get_dev_path {
 sub map_volume {
     my ( $class, $storeid, $scfg, $volname, $snapname ) = @_;
 
-    die "drbd snapshot is not implemented\n" if defined($snapname);
+    die "map_volume: snapshot is not implemented ($snapname)\n" if defined($snapname);
 
     return get_dev_path "$volname";
 }
@@ -215,7 +215,7 @@ sub parse_volname {
 sub filesystem_path {
     my ( $class, $scfg, $volname, $snapname ) = @_;
 
-    die "drbd snapshot is not implemented\n" if defined($snapname);
+    die "filesystem_path: snapshot is not implemented ($snapname)\n" if defined($snapname);
 
     my ( $vtype, $name, $vmid ) = $class->parse_volname($volname);
 
@@ -367,7 +367,7 @@ sub deactivate_storage {
 sub activate_volume {
     my ( $class, $storeid, $scfg, $volname, $snapname, $cache ) = @_;
 
-    die "Snapshot not implemented on DRBD\n" if $snapname;
+    die "activate_volume: snapshot not implemented ($snapname)\n" if $snapname;
 
     return undef if ignore_volume( $scfg, $volname );
 
@@ -386,7 +386,7 @@ sub activate_volume {
 sub deactivate_volume {
     my ( $class, $storeid, $scfg, $volname, $snapname, $cache ) = @_;
 
-    die "Snapshot not implemented on DRBD\n" if $snapname;
+    die "deactivate_volume: snapshot not implemented ($snapname)\n" if $snapname;
 
     return undef if ignore_volume( $scfg, $volname );
 
