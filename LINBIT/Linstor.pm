@@ -387,6 +387,17 @@ sub delete_snapshot {
     return undef;
 }
 
+sub rollback_snapshot {
+    my ( $self, $res_name, $snap_name ) = @_;
+
+    my $ret = $self->{cli}
+      ->POST("/v1/resource-definitions/$res_name/snapshot-rollback/$snap_name");
+    dieContent "Could not rollback cluster wide snapshot $snap_name of $res_name", $ret
+      unless $ret->responseCode() eq '200';
+
+    return undef;
+}
+
 sub get_storagepool_for_resource_group {
     my ( $self, $resgroup_name ) = @_;
 

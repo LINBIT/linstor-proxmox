@@ -437,7 +437,12 @@ sub volume_snapshot {
 sub volume_snapshot_rollback {
     my ( $class, $scfg, $storeid, $volname, $snap ) = @_;
 
-    die "DRBD snapshot rollback is not implemented, please use 'linstor' to recover your data, use 'qm unlock' to unlock your VM";
+    my $snapname = volname_and_snap_to_snapname( $volname, $snap );
+
+    eval { linstor($scfg)->rollback_snapshot( $volname, $snapname ); };
+    confess $@ if $@;
+
+    return 1;
 }
 
 sub volume_snapshot_delete {
