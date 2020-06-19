@@ -190,9 +190,9 @@ sub get_dev_path {
 #
 # For APIVER 2
 sub map_volume {
-    my ( $class, $storeid, $scfg, $volname, $snapname ) = @_;
+    my ( $class, $storeid, $scfg, $volname, $snap ) = @_;
 
-    die "map_volume: snapshot is not implemented ($snapname)\n" if defined($snapname);
+    $volname = volname_and_snap_to_snapname( $volname, $snap ) if defined($snap);
 
     return get_dev_path "$volname";
 }
@@ -365,11 +365,17 @@ sub deactivate_storage {
 }
 
 sub activate_volume {
-    my ( $class, $storeid, $scfg, $volname, $snapname, $cache ) = @_;
-
-    die "activate_volume: snapshot not implemented ($snapname)\n" if $snapname;
+    my ( $class, $storeid, $scfg, $volname, $snap, $cache ) = @_;
 
     return undef if ignore_volume( $scfg, $volname );
+
+    if ($snap) {    # need to create this resource from snapshot
+        my $snapname = volname_and_snap_to_snapname( $volname, $snap );
+        my $new_volname = $snapname;
+        eval { linstor($scfg)->restore_snapshot( $volname, $snapname, $new_volname ); };
+        confess $@ if $@;
+        $volname = $new_volname; # for the rest of this function switch the name
+    }
 
     my $nodename = PVE::INotify::nodename();
 
