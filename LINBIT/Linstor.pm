@@ -168,16 +168,24 @@ sub resource_exists_intentionally_diskless {
     return 0;
 }
 
-
-sub create_resource_manual {
-    my ( $self, $name, $size_kib, $storage_pool, $place_count ) = @_;
+sub create_resource_definition {
+    my ( $self, $name ) = @_;
 
     my $ret = $self->{cli}->POST( '/v1/resource-definitions',
         encode_json( { resource_definition => { name => $name } } ) );
     dieContent "Could not create resource definition $name", $ret
       unless $ret->responseCode() eq '201';
 
-    $ret = $self->{cli}->POST(
+	return 1;
+}
+
+
+sub create_resource_manual {
+    my ( $self, $name, $size_kib, $storage_pool, $place_count ) = @_;
+
+    $self->create_resource_definition($name);
+
+    my $ret = $self->{cli}->POST(
         "/v1/resource-definitions/$name/volume-definitions",
         encode_json( { volume_definition => { size_kib => $size_kib } } )
     );
@@ -255,7 +263,7 @@ sub create_resource_res_group {
 sub create_resource {
     my ( $self, $name ) = @_;
 
-    create_resource_res_group @_;
+    create_resource_res_group(@_);
 
     my $ret = $self->{cli}->PUT(
         "/v1/resource-definitions/$name",
@@ -393,6 +401,26 @@ sub rollback_snapshot {
     my $ret = $self->{cli}
       ->POST("/v1/resource-definitions/$res_name/snapshot-rollback/$snap_name");
     dieContent "Could not rollback cluster wide snapshot $snap_name of $res_name", $ret
+      unless $ret->responseCode() eq '200';
+
+    return undef;
+}
+
+sub restore_snapshot {
+    my ( $self, $res_name, $snap_name, $new_res_name ) = @_;
+
+    $self->create_resource_definition($new_res_name);
+
+    my $ret = $self->{cli}->POST("/v1/resource-definitions/$res_name/snapshot-restore-volume-definition/$snap_name",
+        encode_json( { to_resource => $new_res_name } )
+    );
+    dieContent "Could not restore snapshot volume definition $snap_name of $res_name to new $new_res_name", $ret
+      unless $ret->responseCode() eq '200';
+
+    $ret = $self->{cli}->POST("/v1/resource-definitions/$res_name/snapshot-restore-resource/$snap_name",
+        encode_json( { to_resource => $new_res_name } )
+    );
+    dieContent "Could not restore snapshot $snap_name of $res_name to new $new_res_name", $ret
       unless $ret->responseCode() eq '200';
 
     return undef;
