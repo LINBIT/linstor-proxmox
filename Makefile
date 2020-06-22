@@ -27,6 +27,7 @@ debrelease:
 	tar --owner=0 --group=0 -czvf $(REL).tar.gz \
 		$(REL)/Makefile \
 		$(REL)/README.md \
+		$(REL)/CHANGELOG.md \
 		$(REL)/DRBDPlugin.pm.divert \
 		$(REL)/LINSTORPlugin.pm \
 		$(REL)/LINBIT/Linstor.pm \
