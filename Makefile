@@ -22,6 +22,7 @@ debrelease:
 	$(error environment variable VERSION is not set)
 else
 debrelease:
+	grep -q "$(VERSION)" debian/changelog
 	dh_clean
 	ln -s . $(REL) || true
 	tar --owner=0 --group=0 -czvf $(REL).tar.gz \
