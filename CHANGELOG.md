@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.1.1] - 2020-06-23
+### Fixed
+- Remove temporary resource after `vzdump` in case of backup via a snapshot.
+
 ## [5.1.0] - 2020-06-22
 ### Added
 - Snapshot rollback to the last snapshot
