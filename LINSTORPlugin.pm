@@ -455,7 +455,17 @@ sub volume_snapshot_delete {
     my ( $class, $scfg, $storeid, $volname, $snap ) = @_;
     my $snapname = volname_and_snap_to_snapname( $volname, $snap );
 
-    eval { linstor($scfg)->delete_snapshot( $volname, $snapname ); };
+    my $lsc = linstor($scfg);
+
+    # on backup we created a resource from the given snapshot
+    # on cleanup we as plugin only get a volume_snapshot_delete
+    # so we have to do some "heuristic" to also clean up the resource we created
+    if ( $snap eq 'vzdump' ) {
+        eval { $lsc->delete_resource( $snapname ); };
+        confess $@ if $@;
+    }
+
+    eval { $lsc->delete_snapshot( $volname, $snapname ); };
     confess $@ if $@;
 
     return 1;
