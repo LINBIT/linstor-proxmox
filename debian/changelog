@@ -1,3 +1,18 @@
+linstor-proxmox (5.1.2-1) experimental; urgency=medium
+
+  * APIVER: support 4 and 5
+  * linstor-proxmox version 5.0.2
+  * add note about tie-breaker nodes
+  * snapshot: annotate error msgs with function names
+  * snapshot: add rollback
+  * add restore_snapshot
+  * add backup via snapshot
+  * linstor-proxmox version 5.1.0
+  * delete tmp res on snapshot_delete
+  * linstor-proxmox version 5.1.1
+
+ -- Roland Kammerer <roland.kammerer@linbit.com>  Tue, 23 Jun 2020 11:49:50 +0200
+
 linstor-proxmox (5.0.2-1) experimental; urgency=medium
 
   * APIVER: support 4 and 5
