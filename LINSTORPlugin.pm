@@ -32,12 +32,14 @@ sub api {
    # PVE 6: APIVER 3
    # PVE 6: APIVER 4 e6f4eed43581de9b9706cc2263c9631ea2abfc1a / volume_has_feature
    # PVE 6: APIVER 5 a97d3ee49f21a61d3df10d196140c95dde45ec27 / allow rename
+   # PVE 6: APIVER 6 8f26b3910d7e5149bfa495c3df9c44242af989d5 / prune_backups (fine, we don't support that content type)
+   #
    # we support all (not all features), we just have to be careful what we return
    # as for example PVE5 would not like a APIVER 3
 
    my $apiver = PVE::Storage::APIVER;
 
-   if ($apiver >= 2 and $apiver <= 5) {
+   if ($apiver >= 2 and $apiver <= 6) {
       return $apiver;
    }
 
