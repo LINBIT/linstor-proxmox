@@ -1,3 +1,10 @@
+linstor-proxmox (5.1.3-1) experimental; urgency=medium
+
+  * build: check for $(VERSION) in debian/changelog
+  * APIVER: 6
+
+ -- Roland Kammerer <roland.kammerer@linbit.com>  Mon, 31 Aug 2020 14:35:13 +0200
+
 linstor-proxmox (5.1.2-1) experimental; urgency=medium
 
   * APIVER: support 4 and 5
