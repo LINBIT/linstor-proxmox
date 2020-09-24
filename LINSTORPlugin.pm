@@ -164,25 +164,6 @@ sub volname_and_snap_to_snapname {
     return "snap_${volname}_${snap}";
 }
 
-# TODO: LINSTOR is synchronous enough, remove that soon.
-sub wait_connect_resource {
-    my ($resource) = @_;
-
-    eval {
-        run_command(
-            [ 'drbdsetup', 'wait-connect-resource', $resource ],
-            errmsg => "Could not wait until replication established for ($resource)",
-            timeout => 30 # could use --wfc-timeout, but hey when we already do it proxmoxy...
-        );
-    }; if ($@) {
-       warn $@;
-       open(my $fh, '-|', 'drbdadm', 'dstate', $resource) or die $!;
-       while (my $line = <$fh>) {
-           die "wait-connect-resource failed AND none UpToDate" if ($line !~ m/UpToDate/);
-       }
-    }
-}
-
 sub get_dev_path {
     return "/dev/drbd/by-res/$_[0]/0";
 }
@@ -383,8 +364,6 @@ sub activate_volume {
 
     eval { linstor($scfg)->activate_resource( $volname, $nodename ); };
     confess $@ if $@;
-
-    wait_connect_resource($volname);
 
     system ('blockdev --setrw ' . get_dev_path $volname);
 
