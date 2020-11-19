@@ -1,3 +1,10 @@
+linstor-proxmox (5.1.4-1) experimental; urgency=medium
+
+  * rm wait_connect_resource, now builtin
+  * APIVER: 7 & 8: both are fine for us
+
+ -- Roland Kammerer <roland.kammerer@linbit.com>  Thu, 19 Nov 2020 11:09:09 +0100
+
 linstor-proxmox (5.1.3-1) experimental; urgency=medium
 
   * build: check for $(VERSION) in debian/changelog
