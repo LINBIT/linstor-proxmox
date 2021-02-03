@@ -60,7 +60,7 @@ sub plugindata {
 sub properties {
     return {
         controller => {
-            description => "The IP of the active controller",
+            description => "The IP of the LINSTOR controller (',' separated list allowed)",
             type        => 'string',
             default     => $default_controller,
         },
@@ -108,7 +108,7 @@ sub get_resource_group {
     return $scfg->{resourcegroup} || $default_resourcegroup;
 }
 
-sub get_controller {
+sub get_controllers {
     my ($scfg) = @_;
 
     return $scfg->{controller} || $default_controller;
@@ -129,9 +129,16 @@ sub get_preferred_local_node {
 sub linstor {
     my ($scfg) = @_;
 
-    my $controller = get_controller($scfg);
-    my $cli = REST::Client->new( { host => "http://$controller:3370" } );
-    return LINBIT::Linstor->new( { cli => $cli } );
+    my @controllers = split( /,/, get_controllers($scfg) );
+
+    foreach my $controller (@controllers) {
+        $controller = trim($controller);
+        my $cli = REST::Client->new( { host => "http://${controller}:3370" } );
+        return LINBIT::Linstor->new( { cli => $cli } )
+          if $cli->GET('/health')->responseCode() eq '200';
+    }
+
+    die("could not connect to any LINSTOR controller");
 }
 
 sub get_storagepool {
