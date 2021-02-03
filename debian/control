@@ -9,7 +9,6 @@ Standards-Version: 3.9.6
 Package: linstor-proxmox
 Architecture: all
 Depends: drbd-utils,
-         linstor-client,
          libjson-perl,
          libpve-storage-perl,
          librest-client-perl,
