@@ -1,3 +1,10 @@
+linstor-proxmox (5.1.5-1) experimental; urgency=medium
+
+  * debian: rm linstor-client dep
+  * config: allow multiple controllers
+
+ -- Roland Kammerer <roland.kammerer@linbit.com>  Wed, 17 Feb 2021 14:44:55 +0100
+
 linstor-proxmox (5.1.4-1) experimental; urgency=medium
 
   * rm wait_connect_resource, now builtin

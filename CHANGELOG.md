@@ -6,6 +6,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.1.5] - 2021-02-17
+### Added
+- Support for multiple LINSTOR controllers
+
+## [5.1.4] - 2020-11-19
+### Added
+- Support for APIVER7/8
+
+## [5.1.3] - 2020-08-31
+### Added
+- Support for APIVER6
+
 ## [5.1.2] - 2020-06-23
 ### Fixed
 - increase debian/changelog
