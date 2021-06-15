@@ -19,6 +19,8 @@ use PVE::JSONSchema qw(get_standard_option);
 
 use base qw(PVE::Storage::Plugin);
 
+my $PLUGIN_VERSION = '5.1.5';
+
 # Configuration
 
 my $default_redundancy = 2;
@@ -134,6 +136,7 @@ sub linstor {
     foreach my $controller (@controllers) {
         $controller = trim($controller);
         my $cli = REST::Client->new( { host => "http://${controller}:3370" } );
+        $cli->addHeader('User-Agent', 'linstor-proxmox/' . $PLUGIN_VERSION);
         return LINBIT::Linstor->new( { cli => $cli } )
           if $cli->GET('/health')->responseCode() eq '200';
     }
