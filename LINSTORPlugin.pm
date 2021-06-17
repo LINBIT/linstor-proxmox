@@ -7,6 +7,7 @@ use IO::File;
 use JSON::XS qw( decode_json );
 use Data::Dumper;
 use REST::Client;
+use Storable qw(lock_store lock_retrieve);
 
 use LINBIT::Linstor;
 use LINBIT::PluginHelper;
@@ -28,6 +29,7 @@ my $default_controller = "localhost";
 my $default_controller_vm = "";
 my $default_resourcegroup = "drbdgrp";
 my $default_prefer_local_storage = "no";
+my $default_status_cache = 0;
 
 sub api {
    # PVE 5: APIVER 2
@@ -81,6 +83,13 @@ sub properties {
              type        => 'string',
              default     => $default_prefer_local_storage,
         },
+        statuscache => {
+             description => "Time in seconds status information is cached, 0 means no extra cache",
+             type        => 'integer',
+             minimum     => 0,
+             maximum     => 2*60*60,
+             default     => $default_status_cache,
+        },
     };
 }
 
@@ -90,6 +99,7 @@ sub options {
         controllervm  => { optional => 1 },
         resourcegroup => { optional => 0 },
         preferlocal   => { optional => 1 },
+        statuscache   => { optional => 1 },
         content       => { optional => 1 },
         disable       => { optional => 1 },
         nodes         => { optional => 1 },
@@ -98,10 +108,23 @@ sub options {
 
 # helpers
 
+sub cache_needs_update {
+    my ($cache_file, $max_cache_age) = @_;
+    my $mtime = (stat($cache_file))[9] || 0;
+
+    return time - $mtime >= $max_cache_age
+}
+
 sub get_redundancy {
     my ($scfg) = @_;
 
     return $scfg->{redundancy} || $default_redundancy;
+}
+
+sub get_status_cache {
+    my ($scfg) = @_;
+
+    return $scfg->{statuscache} || $default_status_cache;
 }
 
 sub get_resource_group {
@@ -331,8 +354,19 @@ sub status {
     my ( $class, $storeid, $scfg, $cache ) = @_;
     my $nodename = PVE::INotify::nodename();
 
-    $cache->{"linstor:storagepools"} = linstor($scfg)->get_storagepools()
-      unless $cache->{"linstor:storagepools"};
+    unless($cache->{"linstor:storagepools"}) {
+        my $pools_cache = '/var/cache/linstor-proxmox/pools';
+        my $max_age = get_status_cache($scfg);
+
+        if ($max_age and not cache_needs_update($pools_cache, $max_age)) {
+            $cache->{"linstor:storagepools"} = lock_retrieve($pools_cache);
+        } else {
+            my $sps = linstor($scfg)->get_storagepools();
+            $cache->{"linstor:storagepools"} = $sps;
+            lock_store($sps, $pools_cache) if $max_age;
+        }
+    }
+
     my $storagepools = $cache->{"linstor:storagepools"};
     my $sp = get_storagepool($scfg);
 
