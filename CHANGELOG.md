@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.1.6] - 2021-06-17
+### Added
+- Set User-Agent to `linstor-proxmox/$version`
+- Add `statuscache` storage.cfg option
+
 ## [5.1.5] - 2021-02-17
 ### Added
 - Support for multiple LINSTOR controllers
