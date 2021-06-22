@@ -30,6 +30,9 @@ my $default_controller_vm = "";
 my $default_resourcegroup = "drbdgrp";
 my $default_prefer_local_storage = "no";
 my $default_status_cache = 0;
+my $default_apicrt = undef;
+my $default_apikey = undef;
+my $default_apica = undef;
 
 sub api {
    # PVE 5: APIVER 2
@@ -90,6 +93,22 @@ sub properties {
              maximum     => 2*60*60,
              default     => $default_status_cache,
         },
+        apicrt => {
+             description => "Path to the client certificate.",
+             type        => 'string',
+             default     => $default_apicrt,
+        },
+        apikey => {
+             description => "Path to the client private key",
+             type        => 'string',
+             default     => $default_apikey,
+        },
+        apica => {
+             description => "Path to the CA certificate",
+             type        => 'string',
+             default     => $default_apica,
+        },
+
     };
 }
 
@@ -103,6 +122,9 @@ sub options {
         content       => { optional => 1 },
         disable       => { optional => 1 },
         nodes         => { optional => 1 },
+        apicrt        => { optional => 1 },
+        apikey        => { optional => 1 },
+        apica         => { optional => 1 },
     };
 }
 
@@ -151,14 +173,51 @@ sub get_preferred_local_node {
     return undef;
 }
 
+sub get_apicrt {
+  my ($cfg) = @_;
+
+  return $cfg->{apicrt} || $default_apicrt;
+}
+
+sub get_apikey {
+  my ($cfg) = @_;
+
+  return $cfg->{apikey} || $default_apikey;
+}
+
+sub get_apica {
+  my ($cfg) = @_;
+
+  return $cfg->{apica} || $default_apica;
+}
+
 sub linstor {
     my ($scfg) = @_;
 
     my @controllers = split( /,/, get_controllers($scfg) );
 
+    my $apicrt = get_apicrt($scfg);
+    my $apikey = get_apikey($scfg);
+    my $apica = get_apica($scfg);
+
+    my $proto = "http";
+    my $port = "3370";
+
+    # If cert an key are configured, change protocol and port
+    if ( defined $apicrt and defined $apikey ) {
+      $proto = "https";
+      $port = "3371";
+    }
+
     foreach my $controller (@controllers) {
         $controller = trim($controller);
-        my $cli = REST::Client->new( { host => "http://${controller}:3370" } );
+        my $cli = REST::Client->new( {
+          host => "${proto}://${controller}:${port}",
+          cert => $apicrt,
+          key => $apikey,
+          ca => $apica,
+        } );
+
         $cli->addHeader('User-Agent', 'linstor-proxmox/' . $PLUGIN_VERSION);
         return LINBIT::Linstor->new( { cli => $cli } )
           if $cli->GET('/health')->responseCode() eq '200';
