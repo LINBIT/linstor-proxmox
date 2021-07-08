@@ -316,6 +316,9 @@ sub clone_image {
 sub alloc_image {
     my ( $class, $storeid, $scfg, $vmid, $fmt, $name, $size ) = @_;
 
+    my $min_kib = 5*1024;
+    $size = $min_kib unless $size > $min_kib;
+
     # check if it is the controller, which always has exactly "disk-1"
     my $retname = $name;
     if ( !defined($name) ) {
