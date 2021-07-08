@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.2.0] - 2021-07-08
+### Added
+- Allow https communication to the API via `apicrt`, `apikey`, `apica`
+### Fixed
+- UEFI disks on ZFS
+
 ## [5.1.6] - 2021-06-17
 ### Added
 - Set User-Agent to `linstor-proxmox/$version`
