@@ -1,3 +1,9 @@
+linstor-proxmox (5.2.1-1) experimental; urgency=medium
+
+  * APIVER: 9
+
+ -- Roland Kammerer <roland.kammerer@linbit.com>  Thu, 29 Jul 2021 09:39:35 +0200
+
 linstor-proxmox (5.2.0-1) experimental; urgency=medium
 
   [ Ján Stibila ]
