@@ -42,13 +42,14 @@ sub api {
    # PVE 6: APIVER 6 8f26b3910d7e5149bfa495c3df9c44242af989d5 / prune_backups (fine, we don't support that content type)
    # PVE 6: APIVER 7 2c036838ed1747dabee1d2c79621c7d398d24c50 / volume_snapshot_needs_fsfreeze (guess we are fine, upstream only implemented it for RDBPlugin; we are not that different to let's say LVM in this regard)
    # PVE 6: APIVER 8 343ca2570c3972f0fa1086b020bc9ab731f27b11 / prune_backups (fine again, see APIVER 6)
+   # PVE 7: APIVER 9 3cc29a0487b5c11592bf8b16e96134b5cb613237 / resets APIAGE! changes volume_import/volume_import_formats
    #
    # we support all (not all features), we just have to be careful what we return
    # as for example PVE5 would not like a APIVER 3
 
    my $apiver = PVE::Storage::APIVER;
 
-   if ($apiver >= 2 and $apiver <= 8) {
+   if ($apiver >= 2 and $apiver <= 9) {
       return $apiver;
    }
 
