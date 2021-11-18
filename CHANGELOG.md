@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.2.2] - 2021-11-18
+### Added
+- Support for APIVER10
+
+## [5.2.1] - 2021-07-29
+### Added
+- Support for APIVER9
+
 ## [5.2.0] - 2021-07-08
 ### Added
 - Allow https communication to the API via `apicrt`, `apikey`, `apica`
