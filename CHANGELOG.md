@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Removed
+- `redundancy`: The setting was unused since a long time (i.e., when we introduced LINSTOR resource groups). Remove some leftover dead code.
+- `controllervm`: Should not be used any longer, please use `drbd-reactor::promoter` to set up a [HA LINSTOR Controller](https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-linstor_ha)
+
+### Changed
+- default for `statuscache`: This was set to `0` (i.e., disabled) by default. Enable this cache by default and set it to 1 Minute.
+- default for `preferlocal`: Set default to `yes`.
 
 ## [5.2.2] - 2021-11-18
 ### Added
