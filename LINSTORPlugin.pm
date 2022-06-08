@@ -24,7 +24,6 @@ my $PLUGIN_VERSION = '5.2.2';
 
 # Configuration
 
-my $default_redundancy = 2;
 my $default_controller = "localhost";
 my $default_controller_vm = "";
 my $default_resourcegroup = "drbdgrp";
@@ -137,12 +136,6 @@ sub cache_needs_update {
     my $mtime = (stat($cache_file))[9] || 0;
 
     return time - $mtime >= $max_cache_age
-}
-
-sub get_redundancy {
-    my ($scfg) = @_;
-
-    return $scfg->{redundancy} || $default_redundancy;
 }
 
 sub get_status_cache {
