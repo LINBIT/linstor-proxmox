@@ -25,7 +25,6 @@ my $PLUGIN_VERSION = '5.2.2';
 # Configuration
 
 my $default_controller = "localhost";
-my $default_controller_vm = "";
 my $default_resourcegroup = "drbdgrp";
 my $default_prefer_local_storage = "no";
 my $default_status_cache = 0;
@@ -72,11 +71,6 @@ sub properties {
             type        => 'string',
             default     => $default_controller,
         },
-        controllervm => {
-            description => "The VM number (e.g., 101) of the LINSTOR controller. Set this if the controller is run in a VM itself",
-            type        => 'string',
-            default     => $default_controller_vm,
-        },
         resourcegroup => {
              description => "The name of a LINSTOR resource group which defines the deployment of new VMs.",
              type        => 'string',
@@ -116,7 +110,6 @@ sub properties {
 sub options {
     return {
         controller    => { optional => 1 },
-        controllervm  => { optional => 1 },
         resourcegroup => { optional => 0 },
         preferlocal   => { optional => 1 },
         statuscache   => { optional => 1 },
@@ -232,22 +225,6 @@ sub get_storagepool {
     return $sp;
 }
 
-sub get_controller_vm {
-    my ($scfg) = @_;
-
-    return $scfg->{controllervm} || $default_controller_vm;
-}
-
-sub ignore_volume {
-    my ($scfg, $volume) = @_;
-	 my $controller_vm = get_controller_vm($scfg);
-
-    # keep the '-', if controller_vm is not set, we want vm--
-    return 1 if $volume =~ m/^vm-\Q$controller_vm\E-/;
-
-    return undef;
-}
-
 sub volname_and_snap_to_snapname {
     my ( $volname, $snap ) = @_;
     return "snap_${volname}_${snap}";
@@ -314,13 +291,6 @@ sub alloc_image {
     my $min_kib = 5*1024;
     $size = $min_kib unless $size > $min_kib;
 
-    # check if it is the controller, which always has exactly "disk-1"
-    my $retname = $name;
-    if ( !defined($name) ) {
-        $retname = "vm-$vmid-disk-1";
-    }
-    return $retname if ignore_volume( $scfg, $retname );
-
     die "unsupported format '$fmt'" if $fmt ne 'raw';
 
     die "illegal name '$name' - should be 'vm-$vmid-*'\n"
@@ -361,10 +331,6 @@ sub alloc_image {
 
 sub free_image {
     my ( $class, $storeid, $scfg, $volname, $isBase ) = @_;
-
-   # die() does not really help in that case, the VM definition is still removed
-   # so we could just return undef, still this looks a bit cleaner
-    die "Not freeing contoller VM" if ignore_volume( $scfg, $volname );
 
     my $lsc = linstor($scfg);
     my $in_use = 1;
@@ -453,8 +419,6 @@ sub deactivate_storage {
 sub activate_volume {
     my ( $class, $storeid, $scfg, $volname, $snap, $cache ) = @_;
 
-    return undef if ignore_volume( $scfg, $volname );
-
     if ($snap) {    # need to create this resource from snapshot
         my $snapname = volname_and_snap_to_snapname( $volname, $snap );
         my $new_volname = $snapname;
@@ -477,8 +441,6 @@ sub deactivate_volume {
     my ( $class, $storeid, $scfg, $volname, $snapname, $cache ) = @_;
 
     die "deactivate_volume: snapshot not implemented ($snapname)\n" if $snapname;
-
-    return undef if ignore_volume( $scfg, $volname );
 
     my $nodename = PVE::INotify::nodename();
 
