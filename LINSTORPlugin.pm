@@ -26,7 +26,7 @@ my $PLUGIN_VERSION = '5.2.2';
 
 my $default_controller = "localhost";
 my $default_resourcegroup = "drbdgrp";
-my $default_prefer_local_storage = "no";
+my $default_prefer_local_storage = "yes";
 my $default_status_cache = 60;
 my $default_apicrt = undef;
 my $default_apikey = undef;
