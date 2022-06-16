@@ -1,3 +1,13 @@
+linstor-proxmox (6.0.0~rc.1-1) experimental; urgency=medium
+
+  * rm redundancy settings
+  * rm controllervm setting
+  * keep status cache for 1min by default
+  * preferlocal: set default to yes
+  * CHANGELOG.md: update with unreleased changes
+
+ -- Roland Kammerer <roland.kammerer@linbit.com>  Thu, 16 Jun 2022 14:35:51 +0200
+
 linstor-proxmox (5.2.2-1) experimental; urgency=medium
 
   * APIVER: 10
