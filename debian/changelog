@@ -1,3 +1,9 @@
+linstor-proxmox (6.0.0-1) experimental; urgency=medium
+
+  * New upstream release
+
+ -- Roland Kammerer <roland.kammerer@linbit.com>  Tue, 28 Jun 2022 09:46:13 +0200
+
 linstor-proxmox (6.0.0~rc.1-1) experimental; urgency=medium
 
   * rm redundancy settings

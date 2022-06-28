@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [6.0.0] - 2022-06-28
 ### Removed
 - `redundancy`: The setting was unused since a long time (i.e., when we introduced LINSTOR resource groups). Remove some leftover dead code.
 - `controllervm`: Should not be used any longer, please use `drbd-reactor::promoter` to set up a [HA LINSTOR Controller](https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-linstor_ha)
