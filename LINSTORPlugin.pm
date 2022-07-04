@@ -475,9 +475,6 @@ sub volume_resize {
     eval { linstor($scfg)->resize_resource( $volname, $size_kib ); };
     confess $@ if $@;
 
-    # TODO: remove, temporary fix for non-synchronous LINSTOR resize
-    sleep(10);
-
     return 1;
 }
 
