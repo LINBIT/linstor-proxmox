@@ -422,8 +422,13 @@ sub activate_volume {
     if ($snap) {    # need to create this resource from snapshot
         my $snapname = volname_and_snap_to_snapname( $volname, $snap );
         my $new_volname = $snapname;
-        eval { linstor($scfg)->restore_snapshot( $volname, $snapname, $new_volname ); };
-        confess $@ if $@;
+        my $lsc = linstor($scfg);
+        if ( !$lsc->resource_exists($new_volname) ) {
+            eval {
+                $lsc->restore_snapshot( $volname, $snapname, $new_volname );
+            };
+            confess $@ if $@;
+        }
         $volname = $new_volname; # for the rest of this function switch the name
     }
 
@@ -506,10 +511,11 @@ sub volume_snapshot_delete {
     # on backup we created a resource from the given snapshot
     # on cleanup we as plugin only get a volume_snapshot_delete
     # so we have to do some "heuristic" to also clean up the resource we created
-    if ( $snap eq 'vzdump' ) {
-        eval { $lsc->delete_resource( $snapname ); };
-        confess $@ if $@;
-    }
+    # backup would be: if ( $snap eq 'vzdump' )
+    # but we also want to delete "tempoarary snapshot resources" when they got activated via a clone
+    # this is a nop if the resource does not exist
+    eval { $lsc->delete_resource( $snapname ); };
+    confess $@ if $@;
 
     eval { $lsc->delete_snapshot( $volname, $snapname ); };
     confess $@ if $@;
