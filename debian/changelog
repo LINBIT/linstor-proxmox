@@ -1,3 +1,10 @@
+linstor-proxmox (6.0.1~rc.1-1) experimental; urgency=medium
+
+  * container clone: only create if necessary; rm on snapshot rm
+  * resize: rm sleep(10)
+
+ -- Roland Kammerer <roland.kammerer@linbit.com>  Tue, 05 Jul 2022 09:35:02 +0200
+
 linstor-proxmox (6.0.0-1) experimental; urgency=medium
 
   * New upstream release
