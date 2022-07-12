@@ -1,3 +1,9 @@
+linstor-proxmox (6.0.1-1) experimental; urgency=medium
+
+  * New upstream release
+
+ -- Roland Kammerer <roland.kammerer@linbit.com>  Tue, 12 Jul 2022 09:22:40 +0200
+
 linstor-proxmox (6.0.1~rc.1-1) experimental; urgency=medium
 
   * container clone: only create if necessary; rm on snapshot rm
