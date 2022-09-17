@@ -437,7 +437,7 @@ sub get_storagepool_for_resource_group {
     eval { $resgroups = decode_json( $ret->responseContent() ); };
     die $@ if $@;
 
-    return $resgroups->{select_filter}->{storage_pool};
+    return $resgroups->{select_filter}->{storage_pool_list};
 }
 
 1;
