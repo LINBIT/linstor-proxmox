@@ -234,22 +234,16 @@ sub create_resource_res_group {
     if ($definitions_only) {
         # maybe it can not even get local storage. just ignore the return value, the autoplace fixes it
         # alternatively we could first check if the node even has the SP.
-        my $sp = $self->get_storagepool_for_resource_group($resgroup_name);
         $ret = $self->{cli}->POST(
-            "/v1/resource-definitions/$name/resources",
-            encode_json(
-                [
-                    {
-                        "resource" => {
-                            "node_name" => $local_node_name,
-                            "props"     => { "StorPoolName" => $sp }
-                        }
-                    }
-                ]
-            )
+          "/v1/resource-definitions/$name/resources/$local_node_name/make-available",
+          encode_json(
+              {
+                  diskful => Types::Serialiser::true
+              }
+          )
         );
         print "  Diskfull assignment failed, let's autoplace it.\n"
-          unless $ret->responseCode() eq '201';
+          unless $ret->responseCode() eq '200';
 
         $ret = $self->{cli}->POST( "/v1/resource-definitions/$name/autoplace",
             encode_json( {} ) );
@@ -437,7 +431,7 @@ sub get_storagepool_for_resource_group {
     eval { $resgroups = decode_json( $ret->responseContent() ); };
     die $@ if $@;
 
-    return $resgroups->{select_filter}->{storage_pool};
+    return $resgroups->{select_filter}->{storage_pool_list};
 }
 
 1;

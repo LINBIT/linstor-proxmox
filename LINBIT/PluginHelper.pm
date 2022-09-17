@@ -34,7 +34,7 @@ sub get_images {
         my $pool     = $resources->{$name}->{$node_name}->{storage_pool_name};
 
         # filter by storage_pool property, if set
-        next if $storage_pool and $storage_pool ne $pool;
+        next if $storage_pool and 0 == ( scalar grep { $_ eq $pool } @$storage_pool );
 
         push @$res,
           {
@@ -50,11 +50,11 @@ sub get_images {
 
 sub get_status {
     my ( $storage_pools, $storage_pool, $node_name ) = @_;
-    #     overall      , fitlter      , node_filter
+    #     overall      , filter      , node_filter
 
     my ( $avail_kib, $total_kib );
     foreach my $name ( keys %$storage_pools ) {
-        next if $storage_pool and $storage_pool ne $name;
+        next if $storage_pool and 0 == ( scalar grep { $_ eq $name } @$storage_pool );;
 
         # skip if not on this node
         next unless exists $storage_pools->{$name}->{$node_name};
