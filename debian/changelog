@@ -1,3 +1,14 @@
+linstor-proxmox (6.1.0~rc.1-1) experimental; urgency=medium
+
+  [ dori ]
+  * allow multiple SPs in RG
+
+  [ Roland Kammerer ]
+  * rm unneeded ';'
+  * CHANGELOG.md: update with unreleased changes
+
+ -- Roland Kammerer <roland.kammerer@linbit.com>  Tue, 04 Oct 2022 13:49:14 +0200
+
 linstor-proxmox (6.0.1-1) experimental; urgency=medium
 
   * New upstream release
