@@ -54,7 +54,7 @@ sub get_status {
 
     my ( $avail_kib, $total_kib );
     foreach my $name ( keys %$storage_pools ) {
-        next if $storage_pool and 0 == ( scalar grep { $_ eq $name } @$storage_pool );;
+        next if $storage_pool and 0 == ( scalar grep { $_ eq $name } @$storage_pool );
 
         # skip if not on this node
         next unless exists $storage_pools->{$name}->{$node_name};
