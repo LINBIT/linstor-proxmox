@@ -296,7 +296,7 @@ sub activate_resource {
                         props     => {
                             StorPoolName => $diskless_storage_pool,
                         },
-                        flags => ["DISKLESS"]
+                        flags => ["DRBD_DISKLESS"]
                     }
                 }
             ]
