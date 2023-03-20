@@ -376,32 +376,32 @@ sub list_images {
 sub status {
     my ( $class, $storeid, $scfg, $cache ) = @_;
     my $nodename = PVE::INotify::nodename();
+    my $res_grp = get_resource_group($scfg);
 
-    unless($cache->{"linstor:storagepools"}) {
-        my $pools_cache = '/var/cache/linstor-proxmox/pools';
+    my $cache_key = 'linstor:sizeinfo:' . $res_grp;
+    unless($cache->{$cache_key}) {
+        my $info_cache = '/var/cache/linstor-proxmox/sizeinfo:' . $res_grp;
         my $max_age = get_status_cache($scfg);
 
-        if ($max_age and not cache_needs_update($pools_cache, $max_age)) {
-            $cache->{"linstor:storagepools"} = lock_retrieve($pools_cache);
+        if ($max_age and not cache_needs_update($info_cache, $max_age)) {
+            $cache->{$cache_key} = lock_retrieve($info_cache);
         } else {
-            my $sps = linstor($scfg)->get_storagepools();
-            $cache->{"linstor:storagepools"} = $sps;
-            lock_store($sps, $pools_cache) if $max_age;
+            my $infos = linstor($scfg)->query_size_info($res_grp);
+            $cache->{$cache_key} = $infos;
+            lock_store($infos, $info_cache) if $max_age;
         }
     }
 
-    my $storagepools = $cache->{"linstor:storagepools"};
-    my $sp = get_storagepool($scfg);
-
-    my ( $total, $avail ) =
-      LINBIT::PluginHelper::get_status( $storagepools, $sp,
-        $nodename );
+    my  $total = $cache->{$cache_key}->{capacity_in_kib};
+    my  $avail = $cache->{$cache_key}->{available_size_in_kib};
     return undef unless $total;
 
     # they want it in bytes
     $total *= 1024;
     $avail *= 1024;
-    return ( $total, $avail, $total - $avail, 1 );
+    my $used = $total - $avail;
+    $used = 0 if $used < 0; # there was a linstor bug in calculating thin storage, at least don't generate negative value
+    return ( $total, $avail, $used, 1 );
 }
 
 sub activate_storage {

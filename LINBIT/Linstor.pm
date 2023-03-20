@@ -242,7 +242,7 @@ sub create_resource_res_group {
               }
           )
         );
-        print "  Diskfull assignment failed, let's autoplace it.\n"
+        print "  Diskfull assignment on $local_node_name failed, let's autoplace it.\n"
           unless $ret->responseCode() eq '200';
 
         $ret = $self->{cli}->POST( "/v1/resource-definitions/$name/autoplace",
@@ -432,6 +432,20 @@ sub get_storagepool_for_resource_group {
     die $@ if $@;
 
     return $resgroups->{select_filter}->{storage_pool_list};
+}
+
+sub query_size_info {
+	my ( $self, $resgroup_name ) = @_;
+	my $ret = $self->{cli}->POST("/v1/resource-groups/$resgroup_name/query-size-info",
+		encode_json( {} ) );
+	dieContent "Could not query size info for res group $resgroup_name", $ret
+	unless $ret->responseCode() eq '200';
+
+	my $size_info;
+	eval { $size_info = decode_json( $ret->responseContent() ); };
+	die $@ if $@;
+
+	return $size_info->{space_info};
 }
 
 1;
