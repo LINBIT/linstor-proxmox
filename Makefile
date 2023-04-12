@@ -23,6 +23,7 @@ debrelease:
 else
 debrelease:
 	grep -q "$$( echo '$(VERSION)' | sed -e 's/-rc/~rc/' )" debian/changelog
+	grep 'PLUGIN_VERSION' LINSTORPlugin.pm | grep -q '$(VERSION)'
 	dh_clean
 	ln -s . $(REL) || true
 	tar --owner=0 --group=0 -czvf $(REL).tar.gz \
