@@ -13,10 +13,10 @@ Depends: drbd-utils,
          libpve-storage-perl,
          librest-client-perl,
          libtypes-serialiser-perl,
+         linstor-satellite (>= 1.21.1),
          ${misc:Depends},
          ${perl:Depends}
-Suggests: linstor-controller,
-          linstor-satellite
+Suggests: linstor-controller
 Replaces: drbdmanage-proxmox
 Conflicts: drbdmanage-proxmox
 Description: DRBD distributed resource management utility

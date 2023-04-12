@@ -5,8 +5,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [7.0.0] - 2023-04-12
 ### Changed
 - switch to cluster wide storage view instead of node-local view (requires LINSTOR >= 1.21.1)
+- depend on a recent enough LINSTOR version (we depend on the satellite, but require the controller API)
 
 ## [6.1.0] - 2022-10-11
 ### Added
