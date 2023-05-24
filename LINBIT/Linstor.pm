@@ -448,4 +448,18 @@ sub query_size_info {
 	return $size_info->{space_info};
 }
 
+sub query_all_size_info {
+	my ( $self, $max_age) = @_;
+	my $ret = $self->{cli}->POST("/v1/queries/resource-groups/query-all-size-info",
+		encode_json( {ignore_cache_older_than_sec => $max_age} ) );
+	dieContent "Could not query all size infos for res groups", $ret
+	unless $ret->responseCode() eq '200';
+
+	my $size_info;
+	eval { $size_info = decode_json( $ret->responseContent() ); };
+	die $@ if $@;
+
+	return $size_info->{result};
+}
+
 1;

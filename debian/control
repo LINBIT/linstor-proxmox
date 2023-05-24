@@ -13,7 +13,7 @@ Depends: drbd-utils,
          libpve-storage-perl,
          librest-client-perl,
          libtypes-serialiser-perl,
-         linstor-satellite (>= 1.21.1),
+         linstor-satellite (>= 1.23.0),
          ${misc:Depends},
          ${perl:Depends}
 Suggests: linstor-controller

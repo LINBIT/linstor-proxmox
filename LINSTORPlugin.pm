@@ -378,22 +378,23 @@ sub status {
     my $nodename = PVE::INotify::nodename();
     my $res_grp = get_resource_group($scfg);
 
-    my $cache_key = 'linstor:sizeinfo:' . $res_grp;
+    my $cache_key = 'linstor:sizeinfos';
     unless($cache->{$cache_key}) {
-        my $info_cache = '/var/cache/linstor-proxmox/sizeinfo:' . $res_grp;
+        my $info_cache = '/var/cache/linstor-proxmox/sizeinfos';
         my $max_age = get_status_cache($scfg);
 
         if ($max_age and not cache_needs_update($info_cache, $max_age)) {
             $cache->{$cache_key} = lock_retrieve($info_cache);
         } else {
-            my $infos = linstor($scfg)->query_size_info($res_grp);
+            # plugin uses 0 for disabled cache, LINSTOR -1, but no actual difference, so...
+            my $infos = linstor($scfg)->query_all_size_info($max_age);
             $cache->{$cache_key} = $infos;
             lock_store($infos, $info_cache) if $max_age;
         }
     }
 
-    my  $total = $cache->{$cache_key}->{capacity_in_kib};
-    my  $avail = $cache->{$cache_key}->{available_size_in_kib};
+    my  $total = $cache->{$cache_key}->{$res_grp}->{space_info}->{capacity_in_kib};
+    my  $avail = $cache->{$cache_key}->{$res_grp}->{space_info}->{available_size_in_kib};
     return undef unless $total;
 
     # they want it in bytes
