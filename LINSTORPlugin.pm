@@ -379,8 +379,8 @@ sub status {
     my $res_grp = get_resource_group($scfg);
 
     my $cache_key = 'linstor:sizeinfos';
+    my $info_cache = '/var/cache/linstor-proxmox/sizeinfos';
     unless($cache->{$cache_key}) {
-        my $info_cache = '/var/cache/linstor-proxmox/sizeinfos';
         my $max_age = get_status_cache($scfg);
 
         if ($max_age and not cache_needs_update($info_cache, $max_age)) {
@@ -393,9 +393,14 @@ sub status {
         }
     }
 
-    my  $total = $cache->{$cache_key}->{$res_grp}->{space_info}->{capacity_in_kib};
-    my  $avail = $cache->{$cache_key}->{$res_grp}->{space_info}->{available_size_in_kib};
-    return undef unless $total;
+    my $total = $cache->{$cache_key}->{$res_grp}->{space_info}->{capacity_in_kib};
+    my $avail = $cache->{$cache_key}->{$res_grp}->{space_info}->{available_size_in_kib};
+    return undef unless defined($total); # key/RG does not even exist, mark undef == "inactive"
+    if ($total == 0) { # might have been called very early on system boot/LINSTOR startup, invalidate caches but continue
+        my $infos = linstor($scfg)->query_all_size_info(-1);
+        $cache->{$cache_key} = $infos;
+        lock_store($infos, $info_cache);
+    }
 
     # they want it in bytes
     $total *= 1024;
