@@ -214,17 +214,6 @@ sub linstor {
     die("could not connect to any LINSTOR controller");
 }
 
-sub get_storagepool {
-    my ($scfg) = @_;
-
-    my $res_grp = get_resource_group($scfg);
-
-    my $sp = linstor($scfg)->get_storagepool_for_resource_group($res_grp);
-    die "Have resource group, but storage pool is undefined for resource group $res_grp"
-      unless defined($sp);
-    return $sp;
-}
-
 sub volname_and_snap_to_snapname {
     my ( $volname, $snap ) = @_;
     return "snap_${volname}_${snap}";
@@ -356,21 +345,24 @@ sub list_images {
 
     my $nodename = PVE::INotify::nodename();
 
-    $cache->{"linstor:resources"} = linstor($scfg)->get_resources()
+    # unlike 'status' this is not called in loops like crazy, we can get a current view via update_...():
+    $cache->{"linstor:resources"} = linstor($scfg)->update_resources()
       unless $cache->{"linstor:resources"};
-    $cache->{"linstor:sp"} = get_storagepool($scfg)
-      unless $cache->{"linstor:sp"};
+    $cache->{"linstor:resource_definitions"} = linstor($scfg)->update_resource_definitions()
+      unless $cache->{"linstor:resource_definitions"};
 
     # TODO:
     # Currently we have/expect one resource per volume per proxmox disk image,
     # we do not (yet) use or expect multi-volume resources, even thought it may
     # be useful to have all vm images in one "consistency group".
+    # On the other hand this would make moving disks hard(er).
 
     my $resources = $cache->{"linstor:resources"};
-    my $sp = $cache->{"linstor:sp"};
+    my $resource_definitions = $cache->{"linstor:resource_definitions"};
+    my $res_grp = get_resource_group($scfg);
 
     return LINBIT::PluginHelper::get_images( $storeid, $vmid, $vollist,
-        $resources, $nodename, $sp );
+        $resources, $nodename, $res_grp, $resource_definitions );
 }
 
 sub status {

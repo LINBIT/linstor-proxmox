@@ -6,13 +6,18 @@ use warnings;
 # use Data::Dumper;
 
 sub get_images {
-    my ( $storeid, $vmid, $vollist, $resources, $node_name, $storage_pool ) =
-      @_;
+    my ( $storeid, $vmid, $vollist, $resources, $node_name, $rg,
+        $resource_definitions )
+      = @_;
 
     my $res = [];
     foreach my $name ( keys %$resources ) {
+
         # skip if not on this node
         next unless exists $resources->{$name}->{$node_name};
+
+        # skip if not from this RG
+        next unless $rg eq $resource_definitions->{$name}->{rg_name};
 
         next unless $name =~ /^vm-(\d+)-/;
         my $owner = $1;                 # aka "vmid"
@@ -31,10 +36,6 @@ sub get_images {
           and $resources->{$name}->{$node_name}->{nr_vols} == 1;
 
         my $size_kib = $resources->{$name}->{$node_name}->{usable_size_kib};
-        my $pool     = $resources->{$name}->{$node_name}->{storage_pool_name};
-
-        # filter by storage_pool property, if set
-        next if $storage_pool and 0 == ( scalar grep { $_ eq $pool } @$storage_pool );
 
         push @$res,
           {

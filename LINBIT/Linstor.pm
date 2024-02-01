@@ -79,45 +79,27 @@ sub update_resources {
 }
 
 # update the internal state and return it
-sub update_storagepools {
+sub update_resource_definitions {
     my $self = shift;
 
-    my $sp_info = {};
-    my $ret = $self->{cli}->GET('/v1/view/storage-pools');
-    dieContent "Could not get storage-pool information", $ret
+    my $resdef_info = {};
+    my $ret         = $self->{cli}->GET('/v1/resource-definitions');
+    dieContent "Could not get resource information", $ret
       unless $ret->responseCode() eq '200';
 
-    my $storagepools;
-    eval { $storagepools = decode_json( $ret->responseContent() ); };
+    my $rds;
+    eval { $rds = decode_json( $ret->responseContent() ); };
     confess $@ if $@;
 
-    foreach my $sp (@$storagepools) {
-        my $sp_name   = $sp->{storage_pool_name};
-        my $node_name = $sp->{node_name};
+    foreach my $lrd (@$rds) {
+        my $rd_name = $lrd->{name};
+        my $rg_name = $lrd->{resource_group_name} || '';
 
-        if ( !exists( $sp_info->{$sp_name} ) ) {
-            $sp_info->{$sp_name} = {};
-        }
-
-        if ( exists( $sp_info->{$sp_name}->{$node_name} ) ) {
-            next;
-        }
-
-        my $conf_as_diskless   = $sp->{provider_kind} || '';
-        $conf_as_diskless   = lc $conf_as_diskless eq lc 'DISKLESS';
-
-        my $free_capacity_kib  = $sp->{free_capacity} || 0;
-        my $total_capacity_kib = $sp->{total_capacity} || 0;
-
-        $sp_info->{$sp_name}->{$node_name} = {
-            "conf_as_diskless"   => $conf_as_diskless,
-            "free_capacity_kib"  => $free_capacity_kib,
-            "total_capacity_kib" => $total_capacity_kib,
-        };
+        $resdef_info->{$rd_name} = { "rg_name" => $rg_name, };
     }
 
-    $self->{sp_info} = $sp_info;
-    return $sp_info;
+    $self->{resdef_info} = $resdef_info;
+    return $resdef_info;
 }
 
 # always return the existing one, if you want an updated one, call update_resources()
@@ -131,17 +113,16 @@ sub get_resources {
 	return $self->update_resources();
 }
 
-# always return the existing one, if you want an updated one, call update_storagepools()
+# always return the existing one, if you want an updated one, call update_resource_definitions()
 # just a getter that does initial update, information could be stale
-sub get_storagepools {
+sub get_resource_definitions {
 	my $self = shift;
 
-	return $self->{sp_info}
-		if exists($self->{sp_info});
+	return $self->{resdef_info}
+		if exists($self->{resdef_info});
 
-	return $self->update_storagepools();
+	return $self->update_resource_definitions();
 }
-
 
 sub resource_exists {
 	my ($self, $name, $node_name) = @_;
@@ -177,36 +158,6 @@ sub create_resource_definition {
       unless $ret->responseCode() eq '201';
 
 	return 1;
-}
-
-
-sub create_resource_manual {
-    my ( $self, $name, $size_kib, $storage_pool, $place_count ) = @_;
-
-    $self->create_resource_definition($name);
-
-    my $ret = $self->{cli}->POST(
-        "/v1/resource-definitions/$name/volume-definitions",
-        encode_json( { volume_definition => { size_kib => $size_kib } } )
-    );
-    dieContent "Could not create volume definition for resource $name", $ret
-      unless $ret->responseCode() eq '201';
-
-    $ret = $self->{cli}->POST(
-        "/v1/resource-definitions/$name/autoplace",
-        encode_json(
-            {
-                select_filter => {
-                    place_count  => $place_count,
-                    storage_pool => $storage_pool
-                }
-            }
-        )
-    );
-    dieContent "Could not autoplace resource $name", $ret
-      unless $ret->responseCode() eq '201';
-
-    return 1;
 }
 
 sub create_resource_res_group {
@@ -418,20 +369,6 @@ sub restore_snapshot {
       unless $ret->responseCode() eq '200';
 
     return undef;
-}
-
-sub get_storagepool_for_resource_group {
-    my ( $self, $resgroup_name ) = @_;
-
-    my $ret = $self->{cli}->GET("/v1/resource-groups/$resgroup_name");
-    dieContent "Could not get resource information", $ret
-      unless $ret->responseCode() eq '200';
-
-    my $resgroups;
-    eval { $resgroups = decode_json( $ret->responseContent() ); };
-    die $@ if $@;
-
-    return $resgroups->{select_filter}->{storage_pool_list};
 }
 
 sub query_size_info {
