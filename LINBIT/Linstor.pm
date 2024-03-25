@@ -93,9 +93,10 @@ sub update_resource_definitions {
 
     foreach my $lrd (@$rds) {
         my $rd_name = $lrd->{name};
-        my $rg_name = $lrd->{resource_group_name} || '';
+        my $rg_name = $lrd->{resource_group_name}    || '';
+        my $vmid    = $lrd->{props}->{'Aux/pm/vmid'} || undef;
 
-        $resdef_info->{$rd_name} = { "rg_name" => $rg_name, };
+        $resdef_info->{$rd_name} = { 'rg_name' => $rg_name, 'vmid' => $vmid };
     }
 
     $self->{resdef_info} = $resdef_info;
@@ -205,27 +206,41 @@ sub create_resource_res_group {
     return 1;
 }
 
-sub create_resource {
-    my ( $self, $name ) = @_;
-
-    create_resource_res_group(@_);
+sub set_rd_prop {
+    my ( $self, $name, $key, $value ) = @_;
 
     my $ret = $self->{cli}->PUT(
         "/v1/resource-definitions/$name",
         encode_json(
             {
-                override_props =>
-                  { 'DrbdOptions/Net/allow-two-primaries' => 'yes' }
+                override_props => { $key => $value }
             }
         )
     );
-    dieContent "Could not set allow-two-primaries on resource definition $name",
+    dieContent "Could not set k/v ('$key'/'$value') on resource definition '$name'",
       $ret
       unless $ret->responseCode() eq '200';
 
     return 1;
 }
 
+sub create_resource {
+    my ( $self, $name ) = @_;
+
+    create_resource_res_group(@_);
+
+    $self->set_rd_prop( $name, 'DrbdOptions/Net/allow-two-primaries', 'yes' );
+
+    return 1;
+}
+
+sub set_vmid {
+    my ( $self, $name, $vmid ) = @_;
+
+    $self->set_rd_prop( $name, 'Aux/pm/vmid', $vmid );
+
+    return 1;
+}
 
 sub activate_resource {
     my ( $self, $name, $node_name, $diskless_storage_pool ) = @_;
