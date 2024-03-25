@@ -48,12 +48,22 @@ sub api {
    # we support all (not all features), we just have to be careful what we return
    # as for example PVE5 would not like a APIVER 3
 
-   my $apiver = PVE::Storage::APIVER;
+   my $tested_apiver = 10;
 
-   if ($apiver >= 2 and $apiver <= 10) {
+   my $apiver = PVE::Storage::APIVER;
+   my $apiage = PVE::Storage::APIAGE;
+
+   # the plugin supports multiple PVE generations, currently we did not break anything, tell them what they want to hear if possible
+   if ($apiver >= 2 and $apiver <= $tested_apiver) {
       return $apiver;
    }
 
+   # if we are still in the APIAGE, we can still report what we have
+   if ($apiver - $apiage < $tested_apiver) {
+      return $tested_apiver;
+   }
+
+   # fallback that worked a very very long time ago, nowadays useless, as the core does APIVER - APIAGE checking
    return 3;
 }
 
