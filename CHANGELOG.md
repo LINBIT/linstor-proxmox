@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Changed
 - include diskless assignments in the GUI's "VM Disks"
+### Added
 - allow renaming of volumes
+- allow online moving of storage (e.g., LVM) to DRBD
 
 ## [7.0.1] - 2023-06-15
 ### Fixed

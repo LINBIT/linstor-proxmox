@@ -29,6 +29,7 @@ my $PLUGIN_VERSION = '7.0.1';
 my $default_controller = "localhost";
 my $default_resourcegroup = "drbdgrp";
 my $default_prefer_local_storage = "yes";
+my $default_exact_size = "no";
 my $default_status_cache = 60;
 my $default_apicrt = undef;
 my $default_apikey = undef;
@@ -93,6 +94,11 @@ sub properties {
              type        => 'string',
              default     => $default_prefer_local_storage,
         },
+        exactsize => {
+             description => "Set size in DRBD res files. This allows online moving from another storage (e.g., LVM), but should only be set temporarily (yes/no)",
+             type        => 'string',
+             default     => $default_exact_size,
+        },
         statuscache => {
              description => "Time in seconds status information is cached, 0 means no extra cache",
              type        => 'integer',
@@ -124,6 +130,7 @@ sub options {
         controller    => { optional => 1 },
         resourcegroup => { optional => 0 },
         preferlocal   => { optional => 1 },
+        exactsize     => { optional => 1 },
         statuscache   => { optional => 1 },
         content       => { optional => 1 },
         disable       => { optional => 1 },
@@ -171,6 +178,14 @@ sub get_preferred_local_node {
     }
 
     return undef;
+}
+
+sub get_exact_size {
+    my ($scfg) = @_;
+
+    my $pref = $scfg->{exactsize} || $default_exact_size;
+
+    return lc $pref eq 'yes';
 }
 
 sub get_apicrt {
@@ -375,11 +390,12 @@ sub alloc_image {
     eval {
         my $res_grp         = get_resource_group($scfg);
         my $local_node_name = get_preferred_local_node($scfg);
+        my $exact_size      = get_exact_size($scfg);
         if ( defined($local_node_name) ) {
             print "\nNOTICE\n"
               . "  Trying to create diskful resource ($linstor_name) on ($local_node_name).\n";
         }
-        $lsc->create_resource( $linstor_name, $size, $res_grp, $local_node_name );
+        $lsc->create_resource( $linstor_name, $size, $res_grp, $local_node_name, $exact_size );
         $lsc->set_vmid( $linstor_name, $vmid ); # does not hurt, even vor legacy names
     };
     confess $@ if $@;
@@ -490,11 +506,11 @@ sub activate_volume {
     my ( $class, $storeid, $scfg, $volname, $snap, $cache ) = @_;
 
     my $linstor_name = pm_name_to_linstor_name($volname);
+    my $lsc = linstor($scfg);
 
     if ($snap) {    # need to create this resource from snapshot
         my $snapname = volname_and_snap_to_snapname( $linstor_name, $snap );
         my $new_volname = $snapname;
-        my $lsc = linstor($scfg);
         if ( !$lsc->resource_exists($new_volname) ) {
             eval {
                 $lsc->restore_snapshot( $linstor_name, $snapname, $new_volname );
@@ -504,9 +520,18 @@ sub activate_volume {
         $linstor_name = $new_volname; # for the rest of this function switch the name
     }
 
+    # try to unset exact size if no longer present in scfg
+    my $exact_size = get_exact_size($scfg);
+    if ( !$exact_size ) {
+        eval {
+            $lsc->set_rd_prop( $linstor_name, 'DrbdOptions/ExactSize',
+                LINBIT::Linstor::bool2linstor($exact_size) );
+        };
+    }
+
     my $nodename = PVE::INotify::nodename();
 
-    eval { linstor($scfg)->activate_resource( $linstor_name, $nodename ); };
+    eval { $lsc->activate_resource( $linstor_name, $nodename ); };
     confess $@ if $@;
 
     system ('blockdev --setrw ' . get_dev_path($volname));

@@ -17,6 +17,10 @@ sub dieContent {
 	die "API Return-Code: " . $restErr->responseCode() . ". Message: " . $msg . ", because:\n". $restErr->responseContent() . "\n";
 }
 
+sub bool2linstor {
+    $_[0] ? "True" : "False"
+}
+
 # This plugin is thingle threaded, a real library would need a mutex around self->{xyz}
 
 sub new{
@@ -162,23 +166,26 @@ sub create_resource_definition {
 }
 
 sub create_resource_res_group {
-    my ( $self, $name, $size_kib, $resgroup_name, $local_node_name ) = @_;
+    my ( $self, $name, $size_kib, $resgroup_name, $local_node_name, $exact_size ) = @_;
 
     my $definitions_only = Types::Serialiser::false;
     if ( defined($local_node_name) ) {
         $definitions_only = Types::Serialiser::true;
     }
 
-    my $ret = $self->{cli}->POST(
-        "/v1/resource-groups/$resgroup_name/spawn",
-        encode_json(
-            {
-                resource_definition_name => $name,
-                definitions_only         => $definitions_only,
-                volume_sizes             => [$size_kib]
-            }
-        )
-    );
+    my $opts = {
+        resource_definition_name => $name,
+        definitions_only         => $definitions_only,
+        volume_sizes             => [$size_kib],
+    };
+    # we can avoid a higher LINSTOR version dependency if we set it conditionally
+    # the feature will not be that common, users that want it need a newer LINSTOR
+    $opts->{resource_definition_props} =
+      { 'DrbdOptions/ExactSize' => bool2linstor($exact_size) }
+      if $exact_size;
+
+    my $ret = $self->{cli}
+      ->POST( "/v1/resource-groups/$resgroup_name/spawn", encode_json($opts) );
 
     dieContent "Could not create resource definition $name from resource group $resgroup_name", $ret
       unless $ret->responseCode() eq '201';
