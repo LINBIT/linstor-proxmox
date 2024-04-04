@@ -21,7 +21,7 @@ sub bool2linstor {
     $_[0] ? "True" : "False"
 }
 
-# This plugin is thingle threaded, a real library would need a mutex around self->{xyz}
+# This plugin is single threaded, a real library would need a mutex around self->{xyz}
 
 sub new{
 	my ($class,$args) = @_;
