@@ -1,3 +1,15 @@
+linstor-proxmox (8.0.0~rc.1-1) experimental; urgency=medium
+
+  * show diskless disks in "VM Disks"
+  * allow reassigning disks
+  * test: add simple test script
+  * api: also check for APIAGE
+  * add online mv storage
+  * fix spelling
+  * set allow-two-primaries in RD creation
+
+ -- Roland Kammerer <roland.kammerer@linbit.com>  Thu, 04 Apr 2024 16:35:47 +0200
+
 linstor-proxmox (7.0.1-1) experimental; urgency=medium
 
   * New upstream release
