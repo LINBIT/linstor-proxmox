@@ -174,15 +174,14 @@ sub create_resource_res_group {
     }
 
     my $opts = {
-        resource_definition_name => $name,
-        definitions_only         => $definitions_only,
-        volume_sizes             => [$size_kib],
+        resource_definition_name  => $name,
+        definitions_only          => $definitions_only,
+        volume_sizes              => [$size_kib],
+        resource_definition_props => {
+            'DrbdOptions/ExactSize'               => bool2linstor($exact_size),
+            'DrbdOptions/Net/allow-two-primaries' => 'yes',
+        },
     };
-    # we can avoid a higher LINSTOR version dependency if we set it conditionally
-    # the feature will not be that common, users that want it need a newer LINSTOR
-    $opts->{resource_definition_props} =
-      { 'DrbdOptions/ExactSize' => bool2linstor($exact_size) }
-      if $exact_size;
 
     my $ret = $self->{cli}
       ->POST( "/v1/resource-groups/$resgroup_name/spawn", encode_json($opts) );
@@ -235,8 +234,6 @@ sub create_resource {
     my ( $self, $name ) = @_;
 
     create_resource_res_group(@_);
-
-    $self->set_rd_prop( $name, 'DrbdOptions/Net/allow-two-primaries', 'yes' );
 
     return 1;
 }

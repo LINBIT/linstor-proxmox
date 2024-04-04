@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Changed
 - include diskless assignments in the GUI's "VM Disks"
+- set 'allow-two-primaries' in RD creation (requires LINSTOR >= 1.27.0)
 ### Added
 - allow renaming of volumes
 - allow online moving of storage (e.g., LVM) to DRBD
