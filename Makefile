@@ -22,7 +22,7 @@ debrelease:
 	$(error environment variable VERSION is not set)
 else
 debrelease:
-	grep -q "$$( echo '$(VERSION)' | sed -e 's/-rc/~rc/' )" debian/changelog
+	head -n1 debian/changelog | grep -q "$$( echo '$(VERSION)' | sed -e 's/-rc/~rc/' )"
 	grep 'PLUGIN_VERSION' LINSTORPlugin.pm | grep -q '$(VERSION)'
 	dh_clean
 	ln -s . $(REL) || true
