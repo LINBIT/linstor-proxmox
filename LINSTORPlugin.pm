@@ -12,7 +12,7 @@ use UUID;
 
 use LINBIT::Linstor;
 use LINBIT::PluginHelper
-  qw(valid_legacy_name valid_uuid_name valid_snap_name valid_name get_images);
+  qw(valid_legacy_name valid_uuid_name valid_cloudinit_name valid_snap_name valid_name get_images);
 
 use PVE::Tools qw(run_command trim);
 use PVE::INotify;
@@ -265,7 +265,7 @@ sub pm_name_to_linstor_name {
     if ( valid_uuid_name($volname) ) {
         return uuid_strip_vmid($volname);
     }
-    elsif ( valid_legacy_name($volname) ) {
+    elsif ( valid_legacy_name($volname) or valid_cloudinit_name($volname) ) {
         return $volname;
     }
     else {
@@ -359,15 +359,27 @@ sub alloc_image {
     # pvesm defines that '' is used to flag that a name should be generated
     # so we don't use 'defined()', but a plain 'if':
     if ($name) {
-        if (valid_uuid_name($name)) {
+        if ( valid_uuid_name($name) ) {
             $proxmox_name = $name;
             $linstor_name = uuid_strip_vmid($proxmox_name);
-        } elsif (valid_legacy_name($name)) {
+        }
+        elsif ( valid_legacy_name($name) ) {
             $proxmox_name = $name;
             $linstor_name = $proxmox_name;
         }
+        elsif ( valid_cloudinit_name($name) ) {
+            $proxmox_name = $name;
+            $linstor_name = $proxmox_name;
+            # we might have been called via a VM start on a diskless node that does not have the actual device yet
+            # proxmox stats the device path, fails, and tries to recreate the cloud-init image
+            # but the image actually already exists in LINSTOR, we might be done here,
+            # we get an activate_volume() that creates the diskless assignment later.
+            return $proxmox_name if exists $resources->{$linstor_name};
+            # but if it does not exist yet (e.g., a cloud-init (re)create), we continue as usual
+        }
         else {
-            die "allocated name ('$name') has to be a valid UUID or legacy name";
+            die
+              "allocated name ('$name') has to be a valid UUID or legacy name, or cloud-init name";
         }
 
         die "volume '$linstor_name' already exists\n"
