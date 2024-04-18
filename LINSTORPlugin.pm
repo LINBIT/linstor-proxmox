@@ -22,7 +22,7 @@ use PVE::JSONSchema qw(get_standard_option);
 
 use base qw(PVE::Storage::Plugin);
 
-my $PLUGIN_VERSION = '8.0.0';
+my $PLUGIN_VERSION = '8.0.1';
 
 # Configuration
 

@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## 8.0.1 - 2024-04-18
+### Fixed
+- cloud-init images on diskless nodes
+
 ## 8.0.0 - 2024-04-17
 ### Changed
 - include diskless assignments in the GUI's "VM Disks"

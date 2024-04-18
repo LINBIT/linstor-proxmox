@@ -1,3 +1,10 @@
+linstor-proxmox (8.0.1-1) experimental; urgency=medium
+
+  * build: specifically check first line
+  * fix cloud-init handling
+
+ -- Roland Kammerer <roland.kammerer@linbit.com>  Thu, 18 Apr 2024 14:18:37 +0200
+
 linstor-proxmox (8.0.0-1) experimental; urgency=medium
 
   * New upstream release
