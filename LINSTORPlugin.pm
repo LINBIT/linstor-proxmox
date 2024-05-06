@@ -12,7 +12,7 @@ use UUID;
 
 use LINBIT::Linstor;
 use LINBIT::PluginHelper
-  qw(valid_legacy_name valid_uuid_name valid_cloudinit_name valid_snap_name valid_name get_images);
+  qw(valid_legacy_name valid_uuid_name valid_cloudinit_name valid_state_name valid_snap_name valid_name get_images);
 
 use PVE::Tools qw(run_command trim);
 use PVE::INotify;
@@ -265,7 +265,10 @@ sub pm_name_to_linstor_name {
     if ( valid_uuid_name($volname) ) {
         return uuid_strip_vmid($volname);
     }
-    elsif ( valid_legacy_name($volname) or valid_cloudinit_name($volname) ) {
+    elsif (valid_legacy_name($volname)
+        or valid_cloudinit_name($volname)
+        or valid_state_name($volname) )
+    {
         return $volname;
     }
     else {
@@ -363,7 +366,7 @@ sub alloc_image {
             $proxmox_name = $name;
             $linstor_name = uuid_strip_vmid($proxmox_name);
         }
-        elsif ( valid_legacy_name($name) ) {
+        elsif ( valid_legacy_name($name) or valid_state_name($name) ) {
             $proxmox_name = $name;
             $linstor_name = $proxmox_name;
         }
@@ -379,7 +382,7 @@ sub alloc_image {
         }
         else {
             die
-              "allocated name ('$name') has to be a valid UUID or legacy name, or cloud-init name";
+              "allocated name ('$name') has to be a valid UUID, legacy, state, or cloud-init name";
         }
 
         die "volume '$linstor_name' already exists\n"
