@@ -349,7 +349,19 @@ sub clone_image {
 sub alloc_image {
     my ( $class, $storeid, $scfg, $vmid, $fmt, $name, $size ) = @_;
 
-    my $min_kib = 5*1024;
+    # a minimum size in general makes sense, if a disk is too small
+    # drbd/drbd-utils simply refuse to work on these. the limit was
+    # 5MB, but with that we saw weird side effects: on LVM for example
+    # 5MB became 8MB (2 * 4MB). So far so good. when one backups a VM
+    # with an EFI disk on DRBD everything looks fine, but on restore:
+    # - PVE tries to create a 540672 bytes EFI disk
+    # - the actual disk became larger (8MB in the example)
+    # - vma has code that tolerates 4MB size differences, otherwise
+    #   it bails out that sizes do not match.
+    # - with 8MB we were over that tolerance => use a smaller cap
+    #   (i.e. 3MB) to be in that tolerance
+
+    my $min_kib = 3*1024;
     $size = $min_kib unless $size > $min_kib;
 
     die "unsupported format '$fmt'" if $fmt ne 'raw';
