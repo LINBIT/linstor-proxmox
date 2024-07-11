@@ -289,8 +289,10 @@ sub deactivate_resource {
     # in case this was the auto tie-breaker:
     # on activation, when the resource became diskless *Primary, the TB flag got removed, it became a regular diskless.
     # on deactivation, LINSTOR sees the delete below, but does not delete the diskless, but converts it to a TB again.
+    # so far so good, but: if one deletes a TB, linstor allows that, because it has to assume one deleted the TB intentionally, which can result in this scenario:
+    # PVE sends two deletes after each other (yes, this can happen :/), then the first converts the diskless to TB, the second deletes the TB. to avoid this, we add ?keep_tiebreaker=True
     my $ret = $self->{cli}
-      ->DELETE("/v1/resource-definitions/$name/resources/$node_name");
+      ->DELETE("/v1/resource-definitions/$name/resources/${node_name}?keep_tiebreaker=True");
 
     dieContent "Could not delete diskless resource $name on $node_name", $ret
       unless $ret->responseCode() eq '200';
