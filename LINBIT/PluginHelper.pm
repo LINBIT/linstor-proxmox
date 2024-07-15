@@ -3,7 +3,7 @@ package LINBIT::PluginHelper;
 use strict;
 use warnings;
 use Exporter 'import';
-our @EXPORT_OK = qw(valid_legacy_name valid_uuid_name valid_snap_name valid_cloudinit_name valid_state_name valid_pvc_name valid_name get_images);
+our @EXPORT_OK = qw(valid_legacy_name valid_uuid_name valid_snap_name valid_cloudinit_name valid_state_name valid_pvc_name valid_fleece_name valid_name get_images);
 
 # use Data::Dumper;
 
@@ -31,12 +31,17 @@ sub valid_pvc_name {
     $_[0] =~ /^vm-\d+-pvc-.+\z/
 }
 
+sub valid_fleece_name {
+    $_[0] =~ /^vm-\d+-fleece-.+\z/
+}
+
 sub valid_name {
          valid_legacy_name $_[0]
       or valid_uuid_name $_[0]
       or valid_cloudinit_name $_[0]
       or valid_state_name $_[0]
-      or valid_pvc_name $_[0];
+      or valid_pvc_name $_[0]
+      or valid_fleece_name $_[0];
 }
 
 sub get_images {

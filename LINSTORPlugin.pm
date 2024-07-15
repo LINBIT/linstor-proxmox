@@ -12,7 +12,7 @@ use UUID;
 
 use LINBIT::Linstor;
 use LINBIT::PluginHelper
-  qw(valid_legacy_name valid_uuid_name valid_cloudinit_name valid_state_name valid_snap_name valid_pvc_name valid_name get_images);
+  qw(valid_legacy_name valid_uuid_name valid_cloudinit_name valid_state_name valid_snap_name valid_pvc_name valid_fleece_name valid_name get_images);
 
 use PVE::Tools qw(run_command trim);
 use PVE::INotify;
@@ -268,7 +268,8 @@ sub pm_name_to_linstor_name {
     elsif (valid_legacy_name($volname)
         or valid_cloudinit_name($volname)
         or valid_state_name($volname)
-        or valid_pvc_name($volname) )
+        or valid_pvc_name($volname)
+        or valid_fleece_name($volname) )
     {
         return $volname;
     }
@@ -379,7 +380,10 @@ sub alloc_image {
             $proxmox_name = $name;
             $linstor_name = uuid_strip_vmid($proxmox_name);
         }
-        elsif ( valid_legacy_name($name) or valid_state_name($name) or valid_pvc_name($name) ) {
+        elsif (valid_legacy_name($name)
+            or valid_state_name($name)
+            or valid_pvc_name($name)
+            or valid_fleece_name($name) ) {
             $proxmox_name = $name;
             $linstor_name = $proxmox_name;
         }
