@@ -49,12 +49,20 @@ sub update_resources {
             $res_info->{$res_name} = {};
         }
 
-        if ( exists( $res_info->{$res_name}->{$node_name} ) ) {
+        if ( !exists( $res_info->{$res_name}->{node_info} ) ) {
+            $res_info->{$res_name}->{node_info} = {};
+        }
+
+        if ( exists( $res_info->{$res_name}->{node_info}->{$node_name} ) ) {
             next;
         }
 
-        my $conf_as_diskless = $lr->{volumes}[0]{provider_kind} || '';
-        $conf_as_diskless = lc $conf_as_diskless eq lc 'DISKLESS';
+        my $provider_kind = $lr->{volumes}[0]{provider_kind} || '';
+        my $conf_as_diskless = lc $provider_kind eq lc 'DISKLESS';
+        my $is_sparse =
+             ( lc $provider_kind eq lc 'LVM_THIN' )
+          || ( lc $provider_kind eq lc 'ZFS_THIN' )
+          || ( lc $provider_kind eq lc 'ZFS' );
 
         my $current_state = $lr->{volumes}[0]{state}{disk_state} || '';
         $current_state = lc $current_state;
@@ -69,12 +77,13 @@ sub update_resources {
         my $nr_vols = @{ $lr->{volumes} } || 0;
 
         $res_info->{$res_name}->{in_use} = $in_use;
-        $res_info->{$res_name}->{$node_name} = {
+        $res_info->{$res_name}->{node_info}->{$node_name} = {
             "cur_state"         => $current_state,
             "conf_as_diskless"  => $conf_as_diskless,
             "usable_size_kib"   => $usable_size_kib,
             "nr_vols"           => $nr_vols,
             "storage_pool_name" => $storage_pool_name,
+            "is_sparse"         => $is_sparse,
         };
     }
 
@@ -135,7 +144,7 @@ sub resource_exists {
 	$self->update_resources();
 
 	if (defined($node_name)) {
-		return exists($self->get_resources()->{$name}->{$node_name});
+		return exists($self->get_resources()->{$name}->{node_info}->{$node_name});
 	} else {
 		return exists($self->get_resources()->{$name});
 	}
@@ -149,7 +158,7 @@ sub resource_exists_intentionally_diskless {
     # implicit state update via resource_exists()
     return 1
       if (  $self->resource_exists( $name, $node_name )
-        and $self->get_resources()->{$name}->{$node_name}->{conf_as_diskless} );
+        and $self->get_resources()->{$name}->{node_info}->{$node_name}->{conf_as_diskless} );
 
     return 0;
 }
@@ -334,6 +343,28 @@ sub delete_resource {
 
     # does not update objects state
     return undef;
+}
+
+sub resource_is_sparse {
+    my ( $self, $name, $node_name ) = @_;
+
+    $self->update_resources();
+
+    # note: for diskless resources this does not return true, user has to check that separately
+    return $self->get_resources()->{$name}->{node_info}->${$node_name}
+      ->{is_sparse}
+      if defined($node_name);
+
+    # we consider a resource as thin if it is placed on thin storage on every diskful node.
+    # diskless nodes do not count, they are "transparent"
+    my $node_info = $self->get_resources()->{$name}->{node_info};
+    foreach my $node_name ( keys %$node_info ) {
+        my $node = $node_info->{$node_name};
+        next if $node->{conf_as_diskless};   # diskless don't influence decision
+        return 0 if !$node->{is_sparse};
+    }
+
+    return 1;
 }
 
 sub create_snapshot {

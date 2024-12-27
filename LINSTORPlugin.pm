@@ -689,6 +689,14 @@ sub volume_has_feature {
     # pretend we can rename stuff, but fail for legacy names.
     $features->{rename} = {current => 1};
 
+    # sparseinit is hidden behind a check as we don't want to query the controller if not needed
+    # this is called on the new volume, but just put a snapname guard, as pm_name_to_linstor_name does not handle it anyways
+    if ( $feature eq 'sparseinit' and !$snapname ) {
+        my $linstor_name = pm_name_to_linstor_name($volname);
+        $features->{sparseinit} = { base => 1, current => 1 }
+          if linstor($scfg)->resource_is_sparse($linstor_name);
+    }
+
     my ( $vtype, $name, $vmid, $basename, $basevmid, $isBase ) =
       $class->parse_volname($volname);
 

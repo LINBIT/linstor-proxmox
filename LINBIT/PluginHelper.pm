@@ -53,7 +53,7 @@ sub get_images {
     foreach my $linstor_name ( keys %$resources ) {
 
         # skip if not on this node
-        next unless exists $resources->{$linstor_name}->{$node_name};
+        next unless exists $resources->{$linstor_name}->{node_info}->{$node_name};
 
         # skip if not from this RG
         next unless $rg eq $resource_definitions->{$linstor_name}->{rg_name};
@@ -83,10 +83,10 @@ sub get_images {
         # expect exactly one volume
         # XXX warn for 0 or >= 2 volume resources?
         next
-          unless exists $resources->{$linstor_name}->{$node_name}->{nr_vols}
-          and $resources->{$linstor_name}->{$node_name}->{nr_vols} == 1;
+          unless exists $resources->{$linstor_name}->{node_info}->{$node_name}->{nr_vols}
+          and $resources->{$linstor_name}->{node_info}->{$node_name}->{nr_vols} == 1;
 
-        my $size_kib = $resources->{$linstor_name}->{$node_name}->{usable_size_kib};
+        my $size_kib = $resources->{$linstor_name}->{node_info}->{$node_name}->{usable_size_kib};
 
         push @$res,
           {
