@@ -1,3 +1,10 @@
+linstor-proxmox (8.1.0~rc.1-1) experimental; urgency=medium
+
+  [ Roland Kammerer ]
+  * set 'sparseinit' feature
+
+ -- Roland Kammerer <roland.kammerer@linbit.com>  Wed, 08 Jan 2025 13:58:41 +0100
+
 linstor-proxmox (8.0.4-1) experimental; urgency=medium
 
   [ Roland Kammerer ]
