@@ -428,7 +428,7 @@ sub alloc_image {
               . "  Trying to create diskful resource ($linstor_name) on ($local_node_name).\n";
         }
         $lsc->create_resource( $linstor_name, $size, $res_grp, $local_node_name, $exact_size );
-        $lsc->set_vmid( $linstor_name, $vmid ); # does not hurt, even vor legacy names
+        $lsc->set_vmid( $linstor_name, $vmid ); # does not hurt, even for legacy names
     };
     confess $@ if $@;
 
