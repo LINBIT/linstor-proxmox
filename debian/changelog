@@ -1,3 +1,11 @@
+linstor-proxmox (8.1.1-1) experimental; urgency=medium
+
+  [ Roland Kammerer ]
+  * fix typo in comment
+  * APIVER: 11
+
+ -- Roland Kammerer <roland.kammerer@linbit.com>  Thu, 10 Apr 2025 09:21:07 +0200
+
 linstor-proxmox (8.1.0-1) experimental; urgency=medium
 
   * New upstream release
