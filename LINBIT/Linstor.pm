@@ -256,34 +256,19 @@ sub set_vmid {
 }
 
 sub activate_resource {
-    my ( $self, $name, $node_name, $diskless_storage_pool ) = @_;
-
-    $diskless_storage_pool = "DfltDisklessStorPool"
-      unless defined($diskless_storage_pool);
-
-    # implicit state update via resource_exists
-    return undef
-      if $self->resource_exists( $name, $node_name );
+    my ( $self, $name, $node_name ) = @_;
 
     my $ret = $self->{cli}->POST(
-        "/v1/resource-definitions/$name/resources",
+        "/v1/resource-definitions/$name/resources/$node_name/make-available",
         encode_json(
-            [
-                {
-                    resource => {
-                        node_name => $node_name,
-                        props     => {
-                            StorPoolName => $diskless_storage_pool,
-                        },
-                        flags => ["DRBD_DISKLESS"]
-                    }
-                }
-            ]
+            {
+                diskful => Types::Serialiser::false
+            }
         )
     );
 
     dieContent "Could not create diskless resource $name on $node_name", $ret
-      unless $ret->responseCode() eq '201';
+      unless $ret->responseCode() eq '200';
 
     return undef;
 }
