@@ -1,3 +1,10 @@
+linstor-proxmox (8.1.2~rc.1-1) experimental; urgency=medium
+
+  [ Roland Kammerer ]
+  * use make-available in activate_resource
+
+ -- Roland Kammerer <roland.kammerer@linbit.com>  Tue, 08 Jul 2025 09:23:42 +0200
+
 linstor-proxmox (8.1.1-1) experimental; urgency=medium
 
   [ Roland Kammerer ]
