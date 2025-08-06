@@ -46,11 +46,12 @@ sub api {
    # PVE 7:   APIVER  9 3cc29a0487b5c11592bf8b16e96134b5cb613237 / resets APIAGE! changes volume_import/volume_import_formats
    # PVE 7.1: APIVER 10 a799f7529b9c4430fee13e5b939fe3723b650766 / rm/add volume_snapshot_{list,info} (not used); blockers to volume_rollback_is_possible (not used)
    # PVE 8.4: APIVER 11 e2dc01ac9f06fe37cf434bad9157a50ecc4a99ce / new_backup_provider/sensitive_properties; backup provider might be interesting, we can look at it later
+   # PVE 9:   APIVER 12 280bb6be777abdccd89b1b1d7bdd4feaba9af4c2 / qemu_blockdev_options/rename_snapshot/get_formats
    #
    # we support all (not all features), we just have to be careful what we return
    # as for example PVE5 would not like a APIVER 3
 
-   my $tested_apiver = 11;
+   my $tested_apiver = 12;
 
    my $apiver = PVE::Storage::APIVER;
    my $apiage = PVE::Storage::APIAGE;
