@@ -47,11 +47,13 @@ sub api {
    # PVE 7.1: APIVER 10 a799f7529b9c4430fee13e5b939fe3723b650766 / rm/add volume_snapshot_{list,info} (not used); blockers to volume_rollback_is_possible (not used)
    # PVE 8.4: APIVER 11 e2dc01ac9f06fe37cf434bad9157a50ecc4a99ce / new_backup_provider/sensitive_properties; backup provider might be interesting, we can look at it later
    # PVE 9:   APIVER 12 280bb6be777abdccd89b1b1d7bdd4feaba9af4c2 / qemu_blockdev_options/rename_snapshot/get_formats
+   # PVE 9:   APIVER 13 8818ff0d1d708512811e903f0d4463285e7ef975 / Introduce $hints parameter to activate_volume() and map_volume(); unused, but add parameter
+   # PVE 9:   APIVER 13 0b1331ccda6d1604147a8161137091af949c580c / introduce on_update_hook_full() method; we don't use it
    #
    # we support all (not all features), we just have to be careful what we return
    # as for example PVE5 would not like a APIVER 3
 
-   my $tested_apiver = 12;
+   my $tested_apiver = 13;
 
    my $apiver = PVE::Storage::APIVER;
    my $apiage = PVE::Storage::APIAGE;
@@ -299,7 +301,7 @@ sub get_dev_path {
 #
 # For APIVER 2
 sub map_volume {
-    my ( $class, $storeid, $scfg, $volname, $snap ) = @_;
+    my ( $class, $storeid, $scfg, $volname, $snap, $hints ) = @_;
 
     my $linstor_name = pm_name_to_linstor_name($volname);
     $volname = volname_and_snap_to_snapname( $linstor_name, $snap )
@@ -537,7 +539,7 @@ sub deactivate_storage {
 }
 
 sub activate_volume {
-    my ( $class, $storeid, $scfg, $volname, $snap, $cache ) = @_;
+    my ( $class, $storeid, $scfg, $volname, $snap, $cache, $hints ) = @_;
 
     my $linstor_name = pm_name_to_linstor_name($volname);
     my $lsc = linstor($scfg);
