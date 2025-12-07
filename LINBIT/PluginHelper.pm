@@ -50,13 +50,13 @@ sub get_images {
       = @_;
 
     my $res = [];
-    foreach my $linstor_name ( keys %$resources ) {
-
-        # skip if not on this node
-        next unless exists $resources->{$linstor_name}->{node_info}->{$node_name};
+    foreach my $linstor_name ( keys %$resource_definitions ) {
 
         # skip if not from this RG
         next unless $rg eq $resource_definitions->{$linstor_name}->{rg_name};
+
+        # skip if resource doesn't exist anywhere
+        next unless exists $resources->{$linstor_name};
 
         my $owner;
         my $proxmox_name;
@@ -80,13 +80,20 @@ sub get_images {
           if defined $vollist
           and 0 == ( scalar grep { $_ eq $volid } @$vollist );
 
-        # expect exactly one volume
-        # XXX warn for 0 or >= 2 volume resources?
-        next
-          unless exists $resources->{$linstor_name}->{node_info}->{$node_name}->{nr_vols}
-          and $resources->{$linstor_name}->{node_info}->{$node_name}->{nr_vols} == 1;
+        # Get node info: prefer current node, otherwise use first available node
+        my $node_info;
+        if (exists $resources->{$linstor_name}->{node_info}->{$node_name}) {
+            $node_info = $resources->{$linstor_name}->{node_info}->{$node_name};
+        } else {
+            my @available_nodes = keys %{$resources->{$linstor_name}->{node_info}};
+            next unless @available_nodes;
+            $node_info = $resources->{$linstor_name}->{node_info}->{$available_nodes[0]};
+        }
 
-        my $size_kib = $resources->{$linstor_name}->{node_info}->{$node_name}->{usable_size_kib};
+        # expect exactly one volume
+        next unless $node_info->{nr_vols} == 1;
+
+        my $size_kib = $node_info->{usable_size_kib};
 
         push @$res,
           {
