@@ -283,7 +283,7 @@ sub pm_name_to_linstor_name {
 }
 
 sub get_dev_path {
-    my ($volname) = @_;
+    my ($volname, $scfg, $nodename) = @_;
 
     # we have to be a bit careful here, this one is called from contexts where the volname can be a snapname
     die "Not a valid volume name ('$volname')"
@@ -291,9 +291,27 @@ sub get_dev_path {
       and !valid_snap_name($volname);
 
     # snapshots and legacy names already have their final name
-    $volname = uuid_strip_vmid($volname) if valid_uuid_name($volname);
+    my $linstor_name = $volname;
+    $linstor_name = uuid_strip_vmid($volname) if valid_uuid_name($volname);
 
-    return "/dev/drbd/by-res/$volname/0";
+    # Try DRBD path first for backward compatibility
+    my $drbd_path = "/dev/drbd/by-res/$linstor_name/0";
+    return $drbd_path if -e $drbd_path;
+
+    # For NVMe resources, activate and query API for device path
+    if (defined($scfg) && defined($nodename)) {
+        my $lsc = linstor($scfg);
+
+        unless ($lsc->resource_exists($linstor_name, $nodename)) {
+            eval { $lsc->activate_resource($linstor_name, $nodename); };
+            die "Could not activate resource $linstor_name on $nodename: $@" if $@;
+        }
+
+        my $device_path = $lsc->get_nvme_device_path($linstor_name, $nodename);
+        return $device_path if defined($device_path);
+    }
+
+    return $drbd_path;
 }
 
 
@@ -307,7 +325,7 @@ sub map_volume {
     $volname = volname_and_snap_to_snapname( $linstor_name, $snap )
       if defined($snap);
 
-    return get_dev_path($volname);
+    return get_dev_path($volname, $scfg, PVE::INotify::nodename());
 }
 
 # For APIVER 2
@@ -333,8 +351,7 @@ sub filesystem_path {
     die "filesystem_path: snapshot is not implemented ($snapname)\n" if defined($snapname);
 
     my ( $vtype, $name, $vmid ) = $class->parse_volname($volname);
-
-    my $path = get_dev_path($volname);
+    my $path = get_dev_path($volname, $scfg, PVE::INotify::nodename());
 
     return wantarray ? ( $path, $vmid, $vtype ) : $path;
 }
@@ -427,6 +444,10 @@ sub alloc_image {
         my $res_grp         = get_resource_group($scfg);
         my $local_node_name = get_preferred_local_node($scfg);
         my $exact_size      = get_exact_size($scfg);
+
+        # Validate NVMe resource groups have PlaceCount = 1
+        $lsc->validate_resource_group_for_nvme($res_grp);
+
         if ( defined($local_node_name) ) {
             print "\nNOTICE\n"
               . "  Trying to create diskful resource ($linstor_name) on ($local_node_name).\n";
@@ -566,11 +587,10 @@ sub activate_volume {
     }
 
     my $nodename = PVE::INotify::nodename();
-
     eval { $lsc->activate_resource( $linstor_name, $nodename ); };
     confess $@ if $@;
 
-    system ('blockdev --setrw ' . get_dev_path($volname));
+    system ('blockdev --setrw ' . get_dev_path($volname, $scfg, $nodename));
 
     return undef;
 }
@@ -699,6 +719,13 @@ sub volume_has_feature {
         my $linstor_name = pm_name_to_linstor_name($volname);
         $features->{sparseinit} = { base => 1, current => 1 }
           if linstor($scfg)->resource_is_sparse($linstor_name);
+    }
+
+    # TODO: NVMe resources don't support snapshots at the moment
+    if ( $feature eq 'snapshot' ) {
+        my $linstor_name = pm_name_to_linstor_name($volname);
+        $features->{snapshot} = { current => 0 }
+          if linstor($scfg)->resource_uses_nvme($linstor_name);
     }
 
     my ( $vtype, $name, $vmid, $basename, $basevmid, $isBase ) =
