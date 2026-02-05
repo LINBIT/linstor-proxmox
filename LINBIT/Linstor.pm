@@ -71,8 +71,13 @@ sub update_resources {
 
         my $in_use = $lr->{state}{in_use} || 0;
 
-        my $usable_size_kib =
-          $lr->{layer_object}{drbd}{drbd_volumes}[0]{usable_size_kib} || 0;
+        # Get size from layer object (supports both DRBD and NVMe)
+        my $usable_size_kib = 0;
+        if ($lr->{layer_object}{drbd}{drbd_volumes}[0]{usable_size_kib}) {
+            $usable_size_kib = $lr->{layer_object}{drbd}{drbd_volumes}[0]{usable_size_kib};
+        } elsif ($lr->{layer_object}{nvme}{nvme_volumes}[0]{usable_size_kib}) {
+            $usable_size_kib = $lr->{layer_object}{nvme}{nvme_volumes}[0]{usable_size_kib};
+        }
 
         my $nr_vols = @{ $lr->{volumes} } || 0;
 
@@ -255,20 +260,79 @@ sub set_vmid {
     return 1;
 }
 
+sub resource_uses_nvme {
+    my ( $self, $name ) = @_;
+
+    # Query resource definition to check layer list
+    my $ret = $self->{cli}->GET("/v1/resource-definitions/$name");
+    return 0 unless $ret->responseCode() eq '200';
+
+    my $rd;
+    eval { $rd = decode_json( $ret->responseContent() ); };
+    return 0 if $@;
+
+    # Check if NVME is in the layer list
+    my $layer_stack = $rd->{layer_data} || [];
+    foreach my $layer (@$layer_stack) {
+        return 1 if uc($layer->{type}) eq 'NVME';
+    }
+
+    return 0;
+}
+
+sub validate_resource_group_for_nvme {
+    my ( $self, $res_grp_name ) = @_;
+
+    my $ret = $self->{cli}->GET("/v1/resource-groups/$res_grp_name");
+    return unless $ret->responseCode() eq '200';
+
+    my $rg;
+    eval { $rg = decode_json( $ret->responseContent() ); };
+    return if $@;
+
+    my $layer_stack = $rg->{select_filter}{layer_stack} || [];
+    my $has_nvme = grep { uc($_) eq 'NVME' } @$layer_stack;
+    return unless $has_nvme;
+
+    my $place_count = $rg->{select_filter}{place_count} || 0;
+    die "NVMe resource group '$res_grp_name' must have PlaceCount=1 (currently $place_count)\n"
+      . "Multiple NVMe targets would cause data divergence.\n" if $place_count > 1;
+}
+
 sub activate_resource {
     my ( $self, $name, $node_name ) = @_;
 
-    my $ret = $self->{cli}->POST(
-        "/v1/resource-definitions/$name/resources/$node_name/make-available",
-        encode_json(
-            {
-                diskful => Types::Serialiser::false
-            }
-        )
-    );
+    # Check if resource uses NVMe layer
+    my $is_nvme = $self->resource_uses_nvme($name);
 
-    dieContent "Could not create diskless resource $name on $node_name", $ret
-      unless $ret->responseCode() eq '200';
+    my $ret;
+    if ($is_nvme) {
+        # For NVMe: create resource with NVME_INITIATOR flag
+        $ret = $self->{cli}->POST(
+            "/v1/resource-definitions/$name/resources/$node_name",
+            encode_json(
+                {
+                    resource => {
+                        flags => ["DISKLESS", "NVME_INITIATOR"]
+                    }
+                }
+            )
+        );
+        dieContent "Could not create NVMe initiator resource $name on $node_name", $ret
+          unless $ret->responseCode() eq '201';
+    } else {
+        # For DRBD/other: use make-available (creates diskless)
+        $ret = $self->{cli}->POST(
+            "/v1/resource-definitions/$name/resources/$node_name/make-available",
+            encode_json(
+                {
+                    diskful => Types::Serialiser::false
+                }
+            )
+        );
+        dieContent "Could not create diskless resource $name on $node_name", $ret
+          unless $ret->responseCode() eq '200';
+    }
 
     return undef;
 }
@@ -434,6 +498,48 @@ sub query_all_size_info {
 	die $@ if $@;
 
 	return $size_info->{result};
+}
+
+sub get_nvme_device_path {
+	my ( $self, $name, $node_name ) = @_;
+
+	# Check if resource exists on this node
+	return undef unless $self->resource_exists($name, $node_name);
+
+	# Query full resource view from API to get device_path
+	my $ret = $self->{cli}->GET("/v1/view/resources?resources=$name&nodes=$node_name");
+	return undef unless $ret->responseCode() eq '200';
+
+	my $data;
+	eval { $data = decode_json( $ret->responseContent() ); };
+	return undef if $@;
+
+	# Extract device path from first volume
+	foreach my $res (@$data) {
+		next unless $res->{name} eq $name && $res->{node_name} eq $node_name;
+		if ($res->{volumes} && @{$res->{volumes}} > 0) {
+			my $device_path = $res->{volumes}[0]{device_path};
+
+			# Workaround: On NVMe target nodes, device_path is None
+			# Use backing_device from NVME layer instead
+			if (!defined($device_path) && $res->{volumes}[0]{layer_data_list}[0]) {
+				my $first_layer = $res->{volumes}[0]{layer_data_list}[0];
+				if ($first_layer->{type} eq 'NVME') {
+					$device_path = $first_layer->{data}{backing_device};
+				} else {
+					die "Expected NVME as first layer but got $first_layer->{type}\n";
+				}
+			}
+
+			# Untaint device path (needed for QEMU in taint mode)
+			if ($device_path && $device_path =~ m{^(/dev/[a-zA-Z0-9/_\-]+)$}) {
+				return $1;
+			}
+			return $device_path;
+		}
+	}
+
+	return undef;
 }
 
 1;
