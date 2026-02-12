@@ -30,6 +30,7 @@ my $default_controller = "localhost";
 my $default_resourcegroup = "drbdgrp";
 my $default_prefer_local_storage = "yes";
 my $default_exact_size = "no";
+my $default_allow_two_primaries = "yes";
 my $default_status_cache = 60;
 my $default_apicrt = undef;
 my $default_apikey = undef;
@@ -103,6 +104,11 @@ sub properties {
              type        => 'string',
              default     => $default_exact_size,
         },
+        allowtwoprimaries => {
+             description => "Set allow-two-primaries (if set to 'no' this allows for DRBD protocols other than C, but disables live migration) (yes/no)",
+             type        => 'string',
+             default     => $default_allow_two_primaries,
+        },
         statuscache => {
              description => "Time in seconds status information is cached, 0 means no extra cache",
              type        => 'integer',
@@ -131,17 +137,18 @@ sub properties {
 
 sub options {
     return {
-        controller    => { optional => 1 },
-        resourcegroup => { optional => 0 },
-        preferlocal   => { optional => 1 },
-        exactsize     => { optional => 1 },
-        statuscache   => { optional => 1 },
-        content       => { optional => 1 },
-        disable       => { optional => 1 },
-        nodes         => { optional => 1 },
-        apicrt        => { optional => 1 },
-        apikey        => { optional => 1 },
-        apica         => { optional => 1 },
+        controller        => { optional => 1 },
+        resourcegroup     => { optional => 0 },
+        preferlocal       => { optional => 1 },
+        exactsize         => { optional => 1 },
+        allowtwoprimaries => { optional => 1 },
+        statuscache       => { optional => 1 },
+        content           => { optional => 1 },
+        disable           => { optional => 1 },
+        nodes             => { optional => 1 },
+        apicrt            => { optional => 1 },
+        apikey            => { optional => 1 },
+        apica             => { optional => 1 },
     };
 }
 
@@ -188,6 +195,14 @@ sub get_exact_size {
     my ($scfg) = @_;
 
     my $pref = $scfg->{exactsize} || $default_exact_size;
+
+    return lc $pref eq 'yes';
+}
+
+sub get_allow_two_primaries {
+    my ($scfg) = @_;
+
+    my $pref = $scfg->{allowtwoprimaries} || $default_allow_two_primaries;
 
     return lc $pref eq 'yes';
 }
@@ -441,9 +456,10 @@ sub alloc_image {
       if !defined($proxmox_name) or !defined($linstor_name);
 
     eval {
-        my $res_grp         = get_resource_group($scfg);
-        my $local_node_name = get_preferred_local_node($scfg);
-        my $exact_size      = get_exact_size($scfg);
+        my $res_grp             = get_resource_group($scfg);
+        my $local_node_name     = get_preferred_local_node($scfg);
+        my $exact_size          = get_exact_size($scfg);
+        my $allow_two_primaries = get_allow_two_primaries($scfg);
 
         # Validate NVMe resource groups have PlaceCount = 1
         $lsc->validate_resource_group_for_nvme($res_grp);
@@ -452,7 +468,7 @@ sub alloc_image {
             print "\nNOTICE\n"
               . "  Trying to create diskful resource ($linstor_name) on ($local_node_name).\n";
         }
-        $lsc->create_resource( $linstor_name, $size, $res_grp, $local_node_name, $exact_size );
+        $lsc->create_resource( $linstor_name, $size, $res_grp, $local_node_name, $exact_size, $allow_two_primaries );
         $lsc->set_vmid( $linstor_name, $vmid ); # does not hurt, even for legacy names
     };
     confess $@ if $@;

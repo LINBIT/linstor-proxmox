@@ -21,6 +21,10 @@ sub bool2linstor {
     $_[0] ? "True" : "False"
 }
 
+sub bool2drbd {
+    $_[0] ? "yes" : "no"
+}
+
 # This plugin is single threaded, a real library would need a mutex around self->{xyz}
 
 sub new{
@@ -180,7 +184,7 @@ sub create_resource_definition {
 }
 
 sub create_resource_res_group {
-    my ( $self, $name, $size_kib, $resgroup_name, $local_node_name, $exact_size ) = @_;
+    my ( $self, $name, $size_kib, $resgroup_name, $local_node_name, $exact_size, $allow_two_primaries ) = @_;
 
     my $definitions_only = Types::Serialiser::false;
     if ( defined($local_node_name) ) {
@@ -193,7 +197,7 @@ sub create_resource_res_group {
         volume_sizes              => [$size_kib],
         resource_definition_props => {
             'DrbdOptions/ExactSize'               => bool2linstor($exact_size),
-            'DrbdOptions/Net/allow-two-primaries' => 'yes',
+            'DrbdOptions/Net/allow-two-primaries' => bool2drbd($allow_two_primaries),
         },
     };
 
