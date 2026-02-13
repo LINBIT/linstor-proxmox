@@ -5,6 +5,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- NVMe-oF support: resources using NVMe layer are handled alongside DRBD,
+  including dynamic device path resolution, initiator creation, and
+  PlaceCount validation
+- `allowtwoprimaries` storage config option to allow DRBD protocols other
+  than C (disables live migration when set to 'no')
+
+### Fixed
+- `list_images` now shows all volumes in the storage pool, not just those
+  allocated on the current node
 
 ## 8.1.4 - 2025-11-18
 ### Added

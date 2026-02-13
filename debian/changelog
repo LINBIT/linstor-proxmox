@@ -1,3 +1,14 @@
+linstor-proxmox (8.2.0~rc.1-1) experimental; urgency=medium
+
+  [ Roland Kammerer ]
+  * Add configurable allow-two-primaries option
+
+  [ Tydus ]
+  * Fix list_images to show all volumes in storage pool
+  * Add NVMe-oF support
+
+ -- Roland Kammerer <roland.kammerer@linbit.com>  Fri, 13 Feb 2026 10:21:53 +0100
+
 linstor-proxmox (8.1.4-1) experimental; urgency=medium
 
   [ Roland Kammerer ]
