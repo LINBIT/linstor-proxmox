@@ -579,7 +579,21 @@ sub activate_volume {
     my ( $class, $storeid, $scfg, $volname, $snap, $cache, $hints ) = @_;
 
     my $linstor_name = pm_name_to_linstor_name($volname);
-    my $lsc = linstor($scfg);
+    my $lsc = eval { linstor($scfg) };
+
+    if ($@) {
+        # controller unreachable, try to use existing local DRBD device
+        die "snapshot activation requires a reachable LINSTOR controller\n" if $snap;
+
+        my $drbd_path = "/dev/drbd/by-res/$linstor_name/0";
+        if (-e $drbd_path) {
+            warn "LINSTOR controller unreachable, using existing local DRBD device $drbd_path\n";
+            return undef;
+        }
+
+        die "could not connect to any LINSTOR controller"
+          . " and no local DRBD device exists for $linstor_name\n";
+    }
 
     if ($snap) {    # need to create this resource from snapshot
         my $snapname = volname_and_snap_to_snapname( $linstor_name, $snap );
@@ -617,9 +631,14 @@ sub deactivate_volume {
     my $nodename     = PVE::INotify::nodename();
     my $linstor_name = pm_name_to_linstor_name($volname);
 
+    my $lsc = eval { linstor($scfg) };
+    if ($@) {
+        warn "LINSTOR controller unreachable, skipping deactivation for $linstor_name\n";
+        return undef;
+    }
+
 # deactivate_resource only removes the assignment if diskless, so this could be a single call.
 # We do all this unnecessary dance to print the NOTICE.
-    my $lsc = linstor($scfg);
     my $was_diskless_client =
       $lsc->resource_exists_intentionally_diskless( $linstor_name, $nodename );
 
