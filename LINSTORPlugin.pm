@@ -606,8 +606,6 @@ sub activate_volume {
     eval { $lsc->activate_resource( $linstor_name, $nodename ); };
     confess $@ if $@;
 
-    system ('blockdev --setrw ' . get_dev_path($volname, $scfg, $nodename));
-
     return undef;
 }
 
