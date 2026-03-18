@@ -258,11 +258,24 @@ sub linstor {
 
     my $proto = "http";
     my $port = "3370";
+    my $auth_json = '/var/lib/linstor.d/auth.json';
 
-    # If cert an key are configured, change protocol and port
-    if ( defined $apicrt and defined $apikey ) {
+    # We enable https for the following reasons:
+    # - client authentication: apicrt and apikey are set
+    # - or an explicit CA is set (apica).
+    # - or token authentication should be used (auth.json exists)
+    if ( (defined $apicrt and defined $apikey) or defined $apica or -e $auth_json ) {
       $proto = "https";
       $port = "3371";
+    }
+
+    my $token;
+    if ( -e $auth_json ) {
+        open my $fh, '<', $auth_json or die "cannot open $auth_json: $!\n";
+        my $json = do { local $/; <$fh> };
+        close $fh;
+        my $data = decode_json($json);
+        $token = $data->{token} or die "no 'token' key in $auth_json\n";
     }
 
     foreach my $controller (@controllers) {
@@ -275,8 +288,27 @@ sub linstor {
         } );
 
         $cli->addHeader('User-Agent', 'linstor-proxmox/' . $PLUGIN_VERSION);
+        if ( defined $token ) {
+            $cli->addHeader('Authorization', "Bearer $token");
+            # LINSTOR uses self signed certificates, so:
+            $cli->getUseragent()->ssl_opts(verify_hostname => 0, SSL_verify_mode => 0);
+        }
         return LINBIT::Linstor->new( { cli => $cli } )
           if $cli->GET('/health')->responseCode() eq '200';
+    }
+
+    # still here, check if we have a stale auth.json and a controller with http only
+    # make sure to not leak any tokens
+    if ( -e $auth_json ) {
+        foreach my $controller (@controllers) {
+            $controller = trim($controller);
+            # construct new client, don't set any tokens
+            my $cli = REST::Client->new( { host => "http://${controller}:3370" } );
+            $cli->addHeader( 'User-Agent', 'linstor-proxmox/' . $PLUGIN_VERSION );
+            die "'$auth_json' exists, no controller was reachable via https, but via http."
+              . " This is not supported, we don't leak tokens! Enable https or remove stale token files on all hosts."
+              if $cli->GET('/health')->responseCode() eq '200';
+        }
     }
 
     die("could not connect to any LINSTOR controller");
