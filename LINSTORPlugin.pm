@@ -35,6 +35,7 @@ my $default_status_cache = 60;
 my $default_apicrt = undef;
 my $default_apikey = undef;
 my $default_apica = undef;
+my $default_clusterlocktimeout = 0;
 
 sub api {
    # PVE 5:   APIVER  2
@@ -132,6 +133,13 @@ sub properties {
              default     => $default_apica,
         },
 
+        clusterlocktimeout => {
+             description => "Timeout in seconds for the cluster storage lock. 0 means PVE default timeouts.",
+             type        => 'integer',
+             minimum     => 0,
+             default     => $default_clusterlocktimeout,
+        },
+
     };
 }
 
@@ -148,7 +156,8 @@ sub options {
         nodes             => { optional => 1 },
         apicrt            => { optional => 1 },
         apikey            => { optional => 1 },
-        apica             => { optional => 1 },
+        apica              => { optional => 1 },
+        clusterlocktimeout => { optional => 1 },
     };
 }
 
@@ -358,6 +367,24 @@ sub map_volume {
 # For APIVER 2
 sub unmap_volume {
     return 1;
+}
+
+sub cluster_lock_storage {
+    my ($class, $storeid, $shared, $timeout, $func, @param) = @_;
+
+    my $cfg = PVE::Storage::config();
+    my $scfg = $cfg->{ids}->{$storeid};
+    my $user_timeout = $scfg->{clusterlocktimeout} || 0;
+
+    # usually this gets called with undef. if so, we want to pass it along if the user did not set anything
+    # if there is a timeout, then use the higher of the two values
+    if (!defined($timeout)) {
+        $timeout = $user_timeout if $user_timeout;
+    } else {
+        $timeout = $user_timeout if $user_timeout > $timeout;
+    }
+
+    return $class->SUPER::cluster_lock_storage($storeid, $shared, $timeout, $func, @param);
 }
 
 sub parse_volname {
