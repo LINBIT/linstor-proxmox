@@ -36,6 +36,7 @@ my $default_apicrt = undef;
 my $default_apikey = undef;
 my $default_apica = undef;
 my $default_clusterlocktimeout = 0;
+my $default_searchdomain = undef;
 
 sub api {
    # PVE 5:   APIVER  2
@@ -140,6 +141,12 @@ sub properties {
              default     => $default_clusterlocktimeout,
         },
 
+        searchdomain => {
+             description => "Domain suffix appended to the Proxmox hostname (uname -n). Use when LINSTOR nodes are registered with FQDNs.",
+             type        => 'string',
+             default     => $default_searchdomain,
+        },
+
     };
 }
 
@@ -158,6 +165,7 @@ sub options {
         apikey            => { optional => 1 },
         apica              => { optional => 1 },
         clusterlocktimeout => { optional => 1 },
+        searchdomain      => { optional => 1 },
     };
 }
 
@@ -188,13 +196,20 @@ sub get_controllers {
     return $scfg->{controller} || $default_controller;
 }
 
+sub get_node_name {
+    my ($scfg) = @_;
+    my $sd = $scfg->{searchdomain};
+    return PVE::INotify::nodename() unless $sd;
+    return PVE::INotify::nodename() . ".$sd";
+}
+
 sub get_preferred_local_node {
     my ($scfg) = @_;
 
     my $pref = $scfg->{preferlocal} || $default_prefer_local_storage;
 
     if ( lc $pref eq 'yes' ) {
-        return PVE::INotify::nodename();
+        return get_node_name($scfg);
     }
 
     return undef;
@@ -319,7 +334,7 @@ sub local_drbd_path_exists {
 }
 
 sub get_dev_path {
-    my ($volname, $scfg, $nodename) = @_;
+    my ($volname, $scfg) = @_;
 
     # we have to be a bit careful here, this one is called from contexts where the volname can be a snapname
     die "Not a valid volume name ('$volname')"
@@ -335,8 +350,9 @@ sub get_dev_path {
     return $drbd_path if local_drbd_path_exists($linstor_name);
 
     # For NVMe resources, activate and query API for device path
-    if (defined($scfg) && defined($nodename)) {
+    if (defined($scfg)) {
         my $lsc = linstor($scfg);
+        my $nodename = get_node_name($scfg);
 
         unless ($lsc->resource_exists($linstor_name, $nodename)) {
             eval { $lsc->activate_resource($linstor_name, $nodename); };
@@ -361,7 +377,7 @@ sub map_volume {
     $volname = volname_and_snap_to_snapname( $linstor_name, $snap )
       if defined($snap);
 
-    return get_dev_path($volname, $scfg, PVE::INotify::nodename());
+    return get_dev_path($volname, $scfg);
 }
 
 # For APIVER 2
@@ -405,7 +421,7 @@ sub filesystem_path {
     die "filesystem_path: snapshot is not implemented ($snapname)\n" if defined($snapname);
 
     my ( $vtype, $name, $vmid ) = $class->parse_volname($volname);
-    my $path = get_dev_path($volname, $scfg, PVE::INotify::nodename());
+    my $path = get_dev_path($volname, $scfg);
 
     return wantarray ? ( $path, $vmid, $vtype ) : $path;
 }
@@ -542,7 +558,7 @@ sub free_image {
 sub list_images {
     my ( $class, $storeid, $scfg, $vmid, $vollist, $cache ) = @_;
 
-    my $nodename = PVE::INotify::nodename();
+    my $nodename = get_node_name($scfg);
 
     # unlike 'status' this is not called in loops like crazy, we can get a current view via update_...():
     $cache->{"linstor:resources"} = linstor($scfg)->update_resources()
@@ -652,8 +668,7 @@ sub activate_volume {
         };
     }
 
-    my $nodename = PVE::INotify::nodename();
-    eval { $lsc->activate_resource( $linstor_name, $nodename ); };
+    eval { $lsc->activate_resource( $linstor_name, get_node_name($scfg) ); };
     confess $@ if $@;
 
     return undef;
@@ -664,7 +679,7 @@ sub deactivate_volume {
 
     die "deactivate_volume: snapshot not implemented ($snapname)\n" if $snapname;
 
-    my $nodename     = PVE::INotify::nodename();
+    my $nodename     = get_node_name($scfg);
     my $linstor_name = pm_name_to_linstor_name($volname);
 
     my $lsc = eval { linstor($scfg) };
