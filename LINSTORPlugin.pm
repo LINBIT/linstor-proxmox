@@ -3,9 +3,7 @@ package PVE::Storage::Custom::LINSTORPlugin;
 use strict;
 use warnings;
 use Carp qw( confess );
-use IO::File;
 use JSON::XS qw( decode_json );
-use Data::Dumper;
 use REST::Client;
 use Storable qw(lock_store lock_retrieve);
 use UUID;
@@ -14,11 +12,10 @@ use LINBIT::Linstor;
 use LINBIT::PluginHelper
   qw(valid_legacy_name valid_uuid_name valid_cloudinit_name valid_state_name valid_snap_name valid_pvc_name valid_fleece_name valid_name get_images);
 
-use PVE::Tools qw(run_command trim);
+use PVE::Tools qw(trim);
 use PVE::INotify;
 use PVE::Storage;
 use PVE::Storage::Plugin;
-use PVE::JSONSchema qw(get_standard_option);
 
 use base qw(PVE::Storage::Plugin);
 
