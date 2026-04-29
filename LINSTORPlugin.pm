@@ -133,14 +133,12 @@ sub properties {
              type        => 'string',
              default     => $default_apica,
         },
-
         clusterlocktimeout => {
              description => "Timeout in seconds for the cluster storage lock. 0 means PVE default timeouts.",
              type        => 'integer',
              minimum     => 0,
              default     => $default_clusterlocktimeout,
         },
-
         searchdomain => {
              description => "Domain suffix appended to the Proxmox hostname (uname -n). Use when LINSTOR nodes are registered with FQDNs.",
              type        => 'string',
@@ -152,20 +150,20 @@ sub properties {
 
 sub options {
     return {
-        controller        => { optional => 1 },
-        resourcegroup     => { optional => 0 },
-        preferlocal       => { optional => 1 },
-        exactsize         => { optional => 1 },
-        allowtwoprimaries => { optional => 1 },
-        statuscache       => { optional => 1 },
-        content           => { optional => 1 },
-        disable           => { optional => 1 },
-        nodes             => { optional => 1 },
-        apicrt            => { optional => 1 },
-        apikey            => { optional => 1 },
+        controller         => { optional => 1 },
+        resourcegroup      => { optional => 0 },
+        preferlocal        => { optional => 1 },
+        exactsize          => { optional => 1 },
+        allowtwoprimaries  => { optional => 1 },
+        statuscache        => { optional => 1 },
+        content            => { optional => 1 },
+        disable            => { optional => 1 },
+        nodes              => { optional => 1 },
+        apicrt             => { optional => 1 },
+        apikey             => { optional => 1 },
         apica              => { optional => 1 },
         clusterlocktimeout => { optional => 1 },
-        searchdomain      => { optional => 1 },
+        searchdomain       => { optional => 1 },
     };
 }
 
@@ -199,8 +197,10 @@ sub get_controllers {
 sub get_node_name {
     my ($scfg) = @_;
     my $sd = $scfg->{searchdomain};
-    return PVE::INotify::nodename() unless $sd;
-    return PVE::INotify::nodename() . ".$sd";
+    my $nodename = PVE::INotify::nodename();
+
+    $nodename .= ".$sd" if $sd;
+    return $nodename;
 }
 
 sub get_preferred_local_node {
@@ -583,7 +583,6 @@ sub list_images {
 
 sub status {
     my ( $class, $storeid, $scfg, $cache ) = @_;
-    my $nodename = PVE::INotify::nodename();
     my $res_grp = get_resource_group($scfg);
 
     my $cache_key = 'linstor:sizeinfos';
