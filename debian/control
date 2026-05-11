@@ -1,5 +1,5 @@
 Source: linstor-proxmox
-Maintainer: LINBIT HA Solutions GmbH <drbd-dev@lists.linbit.com>
+Maintainer: LINBIT HA Solutions GmbH <drbd-dev@lists.linux.dev>
 Uploaders: Roland Kammerer <roland.kammerer@linbit.com>
 Section: perl
 Priority: optional
