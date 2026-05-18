@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `clusterlocktimeout` for flocks on parallel actions
 - `searchdomain` to append a domain suffix to the Proxmox hostname when LINSTOR nodes are registered with FQDNs
+- Support for APIVER14
 
 ## 8.2.0 - 2026-02-24
 ### Added
