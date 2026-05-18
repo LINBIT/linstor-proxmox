@@ -50,11 +50,12 @@ sub api {
    # PVE 9:   APIVER 12 280bb6be777abdccd89b1b1d7bdd4feaba9af4c2 / qemu_blockdev_options/rename_snapshot/get_formats
    # PVE 9:   APIVER 13 8818ff0d1d708512811e903f0d4463285e7ef975 / Introduce $hints parameter to activate_volume() and map_volume(); unused, but add parameter
    # PVE 9:   APIVER 13 0b1331ccda6d1604147a8161137091af949c580c / introduce on_update_hook_full() method; we don't use it
+   # PVE 9:   APIVER 14 f6c3d28b015bfe1038d93b96ab3edcefdc0a70b0 / Introduce `get_identity()` plugin method
    #
    # we support all (not all features), we just have to be careful what we return
    # as for example PVE5 would not like a APIVER 3
 
-   my $tested_apiver = 13;
+   my $tested_apiver = 14;
 
    my $apiver = PVE::Storage::APIVER;
    my $apiage = PVE::Storage::APIAGE;
