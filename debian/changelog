@@ -1,3 +1,9 @@
+linstor-proxmox (8.2.1-1) experimental; urgency=medium
+
+  * New upstream release
+
+ -- Roland Kammerer <roland.kammerer@linbit.com>  Mon, 18 May 2026 15:48:35 +0200
+
 linstor-proxmox (8.2.0-1) experimental; urgency=medium
 
   * New upstream release
