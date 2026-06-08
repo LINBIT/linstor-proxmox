@@ -19,7 +19,7 @@ use PVE::Storage::Plugin;
 
 use base qw(PVE::Storage::Plugin);
 
-my $PLUGIN_VERSION = '8.2.0';
+my $PLUGIN_VERSION = '8.3.0-rc.1';
 
 # Configuration
 
