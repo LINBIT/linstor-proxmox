@@ -51,11 +51,12 @@ sub api {
    # PVE 9:   APIVER 13 8818ff0d1d708512811e903f0d4463285e7ef975 / Introduce $hints parameter to activate_volume() and map_volume(); unused, but add parameter
    # PVE 9:   APIVER 13 0b1331ccda6d1604147a8161137091af949c580c / introduce on_update_hook_full() method; we don't use it
    # PVE 9:   APIVER 14 f6c3d28b015bfe1038d93b96ab3edcefdc0a70b0 / Introduce `get_identity()` plugin method
+   # PVE 9:   APIVER 15 d88e33b49a1b61045dad74882d2eb85609ee607b / Add new `$snapname` parameter to the `volume_resize()` plugin method (unused, we can die on that); other unused snapshot changes we don't use
    #
    # we support all (not all features), we just have to be careful what we return
    # as for example PVE5 would not like a APIVER 3
 
-   my $tested_apiver = 14;
+   my $tested_apiver = 15;
 
    my $apiver = PVE::Storage::APIVER;
    my $apiage = PVE::Storage::APIAGE;
@@ -639,7 +640,11 @@ sub deactivate_volume {
 }
 
 sub volume_resize {
-    my ( $class, $scfg, $storeid, $volname, $size, $running ) = @_;
+    my ( $class, $scfg, $storeid, $volname, $size, $running, $snapname ) = @_;
+
+    # APIVER 15
+    # Plugins that do not support the `snapshot-as-volume-chain` configuration option may either die when `$snapname` is set or must implement resizing snapshots.
+    die "volume_resize snapshot is not implemented ($snapname)\n" if defined($snapname);
 
     my $size_kib     = ( $size / 1024 );
     my $linstor_name = pm_name_to_linstor_name($volname);
