@@ -836,7 +836,7 @@ sub volume_has_feature {
     if ( $feature eq 'sparseinit' and !$snapname ) {
         my $linstor_name = pm_name_to_linstor_name($volname);
         $features->{sparseinit} = { base => 1, current => 1 }
-          if linstor($scfg)->resource_is_sparse($linstor_name);
+          if linstor($scfg)->resource_reads_zeros($linstor_name);
     }
 
     # TODO: NVMe resources don't support snapshots at the moment

@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Fixed
+- do not report the `sparseinit` capability for resources using the LUKS
+  layer. A LUKS volume never reads back as zeros, so callers that skip
+  writing zero runs (`qemu-img convert` without `-S 0`, and therefore disk
+  import, clone, `move-disk` and live storage migration) left pseudorandom
+  plaintext where zeros were expected, corrupting GPT partition tables.
 
 ## 8.3.0 - 2026-06-29
 ### Added
