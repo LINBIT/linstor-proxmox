@@ -1,3 +1,10 @@
+linstor-proxmox (8.3.1-1) experimental; urgency=medium
+
+  [ Roland Kammerer ]
+  * do not report sparseinit for resources using the LUKS layer
+
+ -- Roland Kammerer <roland.kammerer@linbit.com>  Mon, 14 Sep 2026 09:00:38 +0200
+
 linstor-proxmox (8.3.0-1) experimental; urgency=medium
 
   * New upstream release
