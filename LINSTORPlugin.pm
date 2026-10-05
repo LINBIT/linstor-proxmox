@@ -51,11 +51,12 @@ sub api {
    # PVE 9:   APIVER 13 0b1331ccda6d1604147a8161137091af949c580c / introduce on_update_hook_full() method; we don't use it
    # PVE 9:   APIVER 14 f6c3d28b015bfe1038d93b96ab3edcefdc0a70b0 / Introduce `get_identity()` plugin method
    # PVE 9:   APIVER 15 d88e33b49a1b61045dad74882d2eb85609ee607b / Add new `$snapname` parameter to the `volume_resize()` plugin method (unused, we can die on that); other unused snapshot changes we don't use
+   # PVE 9:   APIVER 16 3d50f58bc813546c5fa06e9634d80abd0584e01d / Add `volname_for_format()` and friends; only called from the base alloc_image()/rename_volume(), which we don't call
    #
    # we support all (not all features), we just have to be careful what we return
    # as for example PVE5 would not like a APIVER 3
 
-   my $tested_apiver = 15;
+   my $tested_apiver = 16;
 
    my $apiver = PVE::Storage::APIVER;
    my $apiage = PVE::Storage::APIAGE;
